@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-linen: #F8F1E7;
+    --card-cream: #FFF9F1;
+    --primary-pink: #F4B5BE;
+    --accent-rose: #E98F9C;
+    --sage-green: #A9B99A;
+    --light-sage: #E8EEDD;
+    --soft-lavender: #F5E6F0;
+    --text-brown: #49352D;
+    --text-muted: #8C7568;
+    --border-warm: #E6D7C8;
+    --border-pink: #E8B8C0;
+  }
+
+  body {
+    font-family: 'Quicksand', 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: #F8F1E7;
+    color: #49352D;
+    overflow-x: hidden;
+  }
+
+  .font-chinese {
+    font-family: 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  }
+}
+
+@keyframes soundWavePulse {
+  0%, 100% {
+    transform: scaleY(0.45);
+  }
+  50% {
+    transform: scaleY(1.15);
+  }
+}
+
+.animate-wave-bar {
+  animation: soundWavePulse 0.75s ease-in-out infinite;
+}
+
+@keyframes floatGentle {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.animate-float-gentle {
+  animation: floatGentle 3.5s ease-in-out infinite;
+}

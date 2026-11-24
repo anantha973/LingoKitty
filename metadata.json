@@ -1,0 +1,6 @@
+{
+  "name": "中文卡片 ♡ — Chinesisch Lernen",
+  "description": "A cute, cosy pastel Mandarin Chinese learning flashcard app from German with vocabulary, character writing recall, and audio-only listening practice.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
