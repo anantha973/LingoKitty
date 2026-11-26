@@ -45,7 +45,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
   stats,
   srsMap,
   placement,
-  uiLanguage = 'de',
+  uiLanguage = 'en',
   onStartStudy,
   onOpenDecks,
   onOpenPlacement,

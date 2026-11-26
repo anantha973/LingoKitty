@@ -13,7 +13,7 @@ interface NavigationProps {
 export const DesktopSidebar: React.FC<NavigationProps> = ({
   activeSection,
   onNavigate,
-  uiLanguage = 'de',
+  uiLanguage = 'en',
 }) => {
   const t = getUiStrings(uiLanguage).nav;
   const navItems: { id: AppSection; label: string; icon: React.FC<{ className?: string }> }[] = [
@@ -109,7 +109,7 @@ export const DesktopSidebar: React.FC<NavigationProps> = ({
 export const MobileBottomNav: React.FC<NavigationProps> = ({
   activeSection,
   onNavigate,
-  uiLanguage = 'de',
+  uiLanguage = 'en',
 }) => {
   const t = getUiStrings(uiLanguage).nav;
   const navItems: { id: AppSection; label: string; icon: React.FC<{ className?: string }> }[] = [

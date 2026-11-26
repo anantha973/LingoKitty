@@ -8,6 +8,14 @@ import {
 } from '../types';
 
 export const DE_TO_ZH_KEY_SUFFIX = '::de-to-zh';
+export const EN_TO_ZH_KEY_SUFFIX = '::en-to-zh';
+
+export function normalizeStudyDirection(value: unknown): StudyDirection {
+  if (value === 'en-to-zh' || value === 'de-to-zh') {
+    return 'en-to-zh';
+  }
+  return 'zh-to-en';
+}
 
 export const LEGACY_RATING_MAP: Record<'again' | 'hard' | 'good' | 'easy', RatingKey> = {
   again: '1',
@@ -50,6 +58,9 @@ export function ratingToConfidence(rating: RatingKey): 1 | 2 | 3 | 4 | 5 {
 }
 
 export function stripDirectionSuffix(cardOrStateKey: string): string {
+  if (cardOrStateKey.endsWith(EN_TO_ZH_KEY_SUFFIX)) {
+    return cardOrStateKey.slice(0, -EN_TO_ZH_KEY_SUFFIX.length);
+  }
   if (cardOrStateKey.endsWith(DE_TO_ZH_KEY_SUFFIX)) {
     return cardOrStateKey.slice(0, -DE_TO_ZH_KEY_SUFFIX.length);
   }
@@ -58,10 +69,10 @@ export function stripDirectionSuffix(cardOrStateKey: string): string {
 
 export function getSrsStateKey(
   cardId: string,
-  direction: StudyDirection = 'zh-to-de'
+  direction: StudyDirection = 'zh-to-en'
 ): string {
   const baseId = stripDirectionSuffix(cardId);
-  return direction === 'de-to-zh' ? `${baseId}${DE_TO_ZH_KEY_SUFFIX}` : baseId;
+  return direction === 'en-to-zh' ? `${baseId}${DE_TO_ZH_KEY_SUFFIX}` : baseId;
 }
 
 export interface ConfidenceLoopConfig {
@@ -217,7 +228,7 @@ export function createInitialDeckLoopState(
   persistedStates: Record<string, CardSrsState | undefined>,
   bridgeMap: Record<string, CantoneseBridgeKind | undefined> = {},
   config: ConfidenceLoopConfig = CONFIDENCE_LOOP_CONFIG,
-  direction: StudyDirection = 'zh-to-de',
+  direction: StudyDirection = 'zh-to-en',
   shuffleSeed?: string
 ): DeckLoopState {
   const uniqueIds = Array.from(new Set(deckCardIds.map(stripDirectionSuffix)));

@@ -39,7 +39,11 @@ import {
   computeNextSrsState,
   getCardSrsForDirection,
 } from './utils/srsEngine';
-import { getSrsStateKey, normalizeRatingKey } from './utils/confidenceLoopEngine';
+import {
+  getSrsStateKey,
+  normalizeRatingKey,
+  normalizeStudyDirection,
+} from './utils/confidenceLoopEngine';
 
 const STORAGE_KEYS = {
   DECKS: 'zwkp_decks_v2',
@@ -48,6 +52,7 @@ const STORAGE_KEYS = {
   STATS: 'zwkp_stats_v2',
   SRS: 'zwkp_srs_v2',
   PLACEMENT: 'zwkp_placement_v1',
+  EN_PHILOSOPHY_MIGRATED: 'zwkp_en_philosophy_v1',
 };
 
 function loadFromStorage<T>(key: string, fallback: T): T {
@@ -61,18 +66,62 @@ function loadFromStorage<T>(key: string, fallback: T): T {
   }
 }
 
+function loadMergedDecks(): Deck[] {
+  const saved = loadFromStorage<Deck[]>(STORAGE_KEYS.DECKS, INITIAL_DECKS);
+  const builtInIds = new Set(INITIAL_DECKS.map((d) => d.id));
+  const customDecks = saved.filter((d) => !builtInIds.has(d.id));
+  return [...INITIAL_DECKS, ...customDecks];
+}
+
+function loadMergedCards(): Flashcard[] {
+  const saved = loadFromStorage<Flashcard[]>(STORAGE_KEYS.CARDS, INITIAL_CARDS);
+  const savedById = new Map(saved.map((c) => [c.id, c]));
+  const builtInIds = new Set(INITIAL_CARDS.map((c) => c.id));
+
+  // Refresh built-in cards (English primary meanings, corrected pinyin/notes) while keeping progress
+  const mergedBuiltIns = INITIAL_CARDS.map((fresh) => {
+    const prev = savedById.get(fresh.id);
+    if (!prev) return fresh;
+    return {
+      ...fresh,
+      learned: prev.learned ?? fresh.learned,
+      lastRating: prev.lastRating ?? fresh.lastRating,
+    };
+  });
+
+  const customCards = saved.filter((c) => !builtInIds.has(c.id));
+  return [...mergedBuiltIns, ...customCards];
+}
+
+function loadMigratedSettings(): UserSettings {
+  const raw = loadFromStorage<UserSettings>(STORAGE_KEYS.SETTINGS, INITIAL_SETTINGS);
+  const migratedDir = normalizeStudyDirection(raw.defaultDirection);
+  let uiLanguage: UiLanguage = raw.uiLanguage ?? INITIAL_SETTINGS.uiLanguage ?? 'en';
+
+  if (typeof window !== 'undefined') {
+    try {
+      if (!window.localStorage.getItem(STORAGE_KEYS.EN_PHILOSOPHY_MIGRATED)) {
+        uiLanguage = 'en';
+        window.localStorage.setItem(STORAGE_KEYS.EN_PHILOSOPHY_MIGRATED, '1');
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }
+
+  return {
+    ...INITIAL_SETTINGS,
+    ...raw,
+    uiLanguage,
+    defaultDirection: migratedDir,
+  };
+}
+
 export default function App() {
   const [activeSection, setActiveSection] = useState<AppSection>('home');
-  const [decks, setDecks] = useState<Deck[]>(() =>
-    loadFromStorage(STORAGE_KEYS.DECKS, INITIAL_DECKS)
-  );
-  const [cards, setCards] = useState<Flashcard[]>(() =>
-    loadFromStorage(STORAGE_KEYS.CARDS, INITIAL_CARDS)
-  );
-  const [settings, setSettings] = useState<UserSettings>(() => ({
-    ...INITIAL_SETTINGS,
-    ...loadFromStorage(STORAGE_KEYS.SETTINGS, INITIAL_SETTINGS),
-  }));
+  const [decks, setDecks] = useState<Deck[]>(() => loadMergedDecks());
+  const [cards, setCards] = useState<Flashcard[]>(() => loadMergedCards());
+  const [settings, setSettings] = useState<UserSettings>(() => loadMigratedSettings());
   const [stats, setStats] = useState<StudyStats>(() =>
     loadFromStorage(STORAGE_KEYS.STATS, INITIAL_STATS)
   );
@@ -180,10 +229,10 @@ export default function App() {
     setSettings((prev) => ({ ...prev, uiLanguage }));
   }, []);
 
-  const uiLang: UiLanguage = settings.uiLanguage ?? 'de';
+  const uiLang: UiLanguage = settings.uiLanguage ?? 'en';
 
   const handleRateCard = useCallback(
-    (cardId: string, rating: ReviewRating, direction: StudyDirection = 'zh-to-de') => {
+    (cardId: string, rating: ReviewRating, direction: StudyDirection = 'zh-to-en') => {
       const norm = normalizeRatingKey(rating) ?? '1';
       const ratingNum = Number(norm);
       const targetCard = cards.find((c) => c.id === cardId);
@@ -260,7 +309,7 @@ export default function App() {
       const newDeck: Deck = {
         id: newDeckId,
         title,
-        subtitle: 'Eigenes Lern-Deck',
+        subtitle: 'Custom Study Deck',
         category,
         theme,
         illustration,
@@ -273,6 +322,7 @@ export default function App() {
         hanzi: '学习',
         traditional: '學習',
         pinyin: 'xuéxí',
+        english: 'to learn / to study',
         german: 'lernen / studieren',
         grammar: 'Verb',
         level: category,

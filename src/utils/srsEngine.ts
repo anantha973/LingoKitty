@@ -32,7 +32,7 @@ export function createDefaultSrsState(stateKey: string): CardSrsState {
 export function getCardSrsForDirection(
   srsMap: Record<string, CardSrsState | undefined>,
   cardId: string,
-  direction: StudyDirection = 'zh-to-de'
+  direction: StudyDirection = 'zh-to-en'
 ): CardSrsState {
   const key = getSrsStateKey(cardId, direction);
   return srsMap[key] || createDefaultSrsState(key);
@@ -128,8 +128,8 @@ export function applyPlacementCalibration(
 
     if (isDivergent) continue;
 
-    // Recognition track (zh-to-de)
-    const recKey = getSrsStateKey(card.id, 'zh-to-de');
+    // Recognition track (zh-to-en)
+    const recKey = getSrsStateKey(card.id, 'zh-to-en');
     if (nextSrs[recKey] && nextSrs[recKey].reviewCount > 0) continue;
 
     if (level < placement.recommendedHskLevel) {

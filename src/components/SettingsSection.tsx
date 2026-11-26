@@ -4,6 +4,7 @@ import { StudyDirection, StudyMode, UiLanguage, UserSettings } from '../types';
 import { CatSleeping } from './KawaiiIllustrations';
 import { AnimatedMascotScene } from './AnimatedMascotScene';
 import { getUiStrings } from '../data/uiStrings';
+import { normalizeStudyDirection } from '../utils/confidenceLoopEngine';
 
 interface SettingsSectionProps {
   settings: UserSettings;
@@ -25,7 +26,8 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({
   onResetDemoData,
 }) => {
   const [resetConfirmed, setResetConfirmed] = useState(false);
-  const uiLang: UiLanguage = settings.uiLanguage ?? 'de';
+  const uiLang: UiLanguage = settings.uiLanguage ?? 'en';
+  const activeDirection = normalizeStudyDirection(settings.defaultDirection);
   const t = getUiStrings(uiLang).settings;
 
   const handleResetClick = () => {
@@ -113,14 +115,14 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({
             <div className="sm:col-span-7 flex flex-wrap items-center gap-2">
               <select
                 id="direction-select"
-                value={settings.defaultDirection}
+                value={activeDirection}
                 onChange={(e) =>
                   onUpdateDirection(e.target.value as StudyDirection)
                 }
                 className="min-h-[44px] px-4 py-2.5 rounded-xl bg-[#F8F1E7] border border-[#E9D8C8] text-sm font-bold text-[#49352D] focus:outline-none focus:border-[#E98F9C] cursor-pointer"
               >
-                <option value="zh-to-de">{t.dirZhDe}</option>
-                <option value="de-to-zh">{t.dirDeZh}</option>
+                <option value="zh-to-en">{t.dirZhEn}</option>
+                <option value="en-to-zh">{t.dirEnZh}</option>
               </select>
             </div>
           </div>

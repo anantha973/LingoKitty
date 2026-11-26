@@ -19,17 +19,17 @@ export const PLACEMENT_QUESTIONS: PlacementQuestion[] =
 export const INITIAL_DECKS: Deck[] = [
   {
     id: 'cantonese-bridge',
-    title: 'Kantonesisch → Mandarin',
-    subtitle: 'Wichtige Unterschiede, False Friends & Ton-Sandhi',
-    category: 'Brücke',
+    title: 'Cantonese → Mandarin',
+    subtitle: 'Key differences, false friends & tone sandhi',
+    category: 'Bridge',
     theme: 'pink',
     illustration: 'cat',
     hskLevel: 1,
   },
   {
     id: 'hsk1-words',
-    title: 'HSK 1 – Wortschatz',
-    subtitle: '506 Grundwörter (HSK 3.0)',
+    title: 'HSK 1 – Vocabulary',
+    subtitle: '506 core words (HSK 3.0)',
     category: 'HSK 1',
     theme: 'pink',
     illustration: 'flower',
@@ -37,8 +37,8 @@ export const INITIAL_DECKS: Deck[] = [
   },
   {
     id: 'hsk1-sentences',
-    title: 'HSK 1 – Sätze & Hören',
-    subtitle: '281 Sätze mit Normal- & Langsam-Audio',
+    title: 'HSK 1 – Sentences & Listening',
+    subtitle: '281 sentences with normal & slow audio',
     category: 'HSK 1',
     theme: 'sage',
     illustration: 'dango',
@@ -46,8 +46,8 @@ export const INITIAL_DECKS: Deck[] = [
   },
   {
     id: 'hsk2-words',
-    title: 'HSK 2 – Wortschatz',
-    subtitle: '750 Aufbauwörter (HSK 3.0)',
+    title: 'HSK 2 – Vocabulary',
+    subtitle: '750 intermediate words (HSK 3.0)',
     category: 'HSK 2',
     theme: 'cream',
     illustration: 'tea',
@@ -55,8 +55,8 @@ export const INITIAL_DECKS: Deck[] = [
   },
   {
     id: 'hsk2-sentences',
-    title: 'HSK 2 – Sätze & Hören',
-    subtitle: '538 Sätze mit Normal- & Langsam-Audio',
+    title: 'HSK 2 – Sentences & Listening',
+    subtitle: '538 sentences with normal & slow audio',
     category: 'HSK 2',
     theme: 'lavender',
     illustration: 'leaves',
@@ -73,8 +73,8 @@ export const INITIAL_CARDS: Flashcard[] = [
 ];
 
 export const INITIAL_SETTINGS: UserSettings = {
-  uiLanguage: 'de',
-  defaultDirection: 'zh-to-de',
+  uiLanguage: 'en',
+  defaultDirection: 'zh-to-en',
   enabledModes: {
     vocab: true,
     writing: true,

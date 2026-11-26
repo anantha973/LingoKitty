@@ -39,7 +39,7 @@ interface DecksSectionProps {
 export const DecksSection: React.FC<DecksSectionProps> = ({
   decks,
   cards,
-  uiLanguage = 'de',
+  uiLanguage = 'en',
   onStartDeckStudy,
   onCreateDeck,
   onAddCard,
@@ -51,15 +51,16 @@ export const DecksSection: React.FC<DecksSectionProps> = ({
 
   // New Deck Form State
   const [deckTitle, setDeckTitle] = useState('');
-  const [deckCategory, setDeckCategory] = useState('Wortschatz');
+  const [deckCategory, setDeckCategory] = useState('Vocabulary');
   const [deckTheme, setDeckTheme] = useState<DeckTheme>('pink');
   const [deckIllustration, setDeckIllustration] = useState<DeckIllustrationType>('flower');
 
   // New Card Form State
   const [cardHanzi, setCardHanzi] = useState('');
   const [cardPinyin, setCardPinyin] = useState('');
+  const [cardEnglish, setCardEnglish] = useState('');
   const [cardGerman, setCardGerman] = useState('');
-  const [cardGrammar, setCardGrammar] = useState('Nomen');
+  const [cardGrammar, setCardGrammar] = useState('Noun');
   const [cardMode, setCardMode] = useState<StudyMode>('vocab');
 
   const categories = ['__ALL__', ...Array.from(new Set(decks.map((d) => d.category)))];
@@ -73,7 +74,7 @@ export const DecksSection: React.FC<DecksSectionProps> = ({
     if (!deckTitle.trim()) return;
     onCreateDeck(
       deckTitle.trim(),
-      deckCategory.trim() || 'Allgemein',
+      deckCategory.trim() || 'General',
       deckTheme,
       deckIllustration
     );
@@ -83,19 +84,21 @@ export const DecksSection: React.FC<DecksSectionProps> = ({
 
   const handleAddCardSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!showAddCardModal || !cardHanzi.trim() || !cardGerman.trim()) return;
+    if (!showAddCardModal || !cardHanzi.trim() || !cardEnglish.trim()) return;
     onAddCard({
       deckId: showAddCardModal,
       hanzi: cardHanzi.trim(),
       pinyin: cardPinyin.trim() || '—',
-      german: cardGerman.trim(),
-      grammar: cardGrammar.trim() || 'Wort',
-      level: 'Eigenes Wort',
+      english: cardEnglish.trim(),
+      german: cardGerman.trim() || cardEnglish.trim(),
+      grammar: cardGrammar.trim() || 'Word',
+      level: 'Custom',
       mode: cardMode,
       learned: false,
     });
     setCardHanzi('');
     setCardPinyin('');
+    setCardEnglish('');
     setCardGerman('');
     setShowAddCardModal(null);
   };
@@ -460,14 +463,27 @@ export const DecksSection: React.FC<DecksSectionProps> = ({
 
               <div>
                 <label className="block text-xs font-bold text-[#6B5344] mb-1">
-                  {t.germanMeaningLabel}
+                  {t.englishMeaningLabel}
                 </label>
                 <input
                   type="text"
                   required
+                  value={cardEnglish}
+                  onChange={(e) => setCardEnglish(e.target.value)}
+                  placeholder="e.g. apple"
+                  className="w-full min-h-[44px] px-3.5 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#E9D8C8] text-sm font-bold text-[#49352D] focus:outline-none focus:border-[#E98F9C]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#6B5344] mb-1">
+                  {t.germanMeaningLabel}
+                </label>
+                <input
+                  type="text"
                   value={cardGerman}
                   onChange={(e) => setCardGerman(e.target.value)}
-                  placeholder="z.B. (der) Apfel"
+                  placeholder="z.B. Apfel (optional)"
                   className="w-full min-h-[44px] px-3.5 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#E9D8C8] text-sm font-bold text-[#49352D] focus:outline-none focus:border-[#E98F9C]"
                 />
               </div>

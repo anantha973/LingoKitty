@@ -27,7 +27,7 @@ export const ProgressSection: React.FC<ProgressSectionProps> = ({
   decks,
   cards,
   stats,
-  uiLanguage = 'de',
+  uiLanguage = 'en',
 }) => {
   const t = getUiStrings(uiLanguage).progress;
   const totalCards = cards.length;

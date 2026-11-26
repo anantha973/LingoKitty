@@ -1,6 +1,6 @@
 import { UiLanguage } from '../types';
 
-export function getUiStrings(lang: UiLanguage = 'de') {
+export function getUiStrings(lang: UiLanguage = 'en') {
   const isEn = lang === 'en';
   return {
     nav: {
@@ -51,10 +51,10 @@ export function getUiStrings(lang: UiLanguage = 'de') {
       writing: isEn ? 'Writing' : 'Schreibübung',
       listening: isEn ? 'Listening' : 'Hörübung',
       modeVocabDesc: isEn
-        ? 'Learn characters, Pinyin & German meanings.'
-        : 'Schriftzeichen, Pinyin & Bedeutung lernen.',
+        ? 'Learn characters, Pinyin & English meanings.'
+        : 'Schriftzeichen, Pinyin & englische Bedeutung lernen.',
       modeWritingDesc: isEn
-        ? 'Practice simplified characters by keyboard.'
+        ? 'Practice simplified characters from English prompts.'
         : 'Vereinfachte Zeichen per Tastatur üben.',
       modeListeningDesc: isEn
         ? 'Understand full Mandarin sentences via audio.'
@@ -92,6 +92,17 @@ export function getUiStrings(lang: UiLanguage = 'de') {
       showAnswer: isEn
         ? 'Show Answer (Space)'
         : 'Antwort zeigen (Leertaste)',
+      tapToRevealEn: isEn
+        ? 'Tap card or swipe up for English'
+        : 'Tippen oder nach oben wischen für Englisch',
+      tapToRevealZh: isEn
+        ? 'Tap card or swipe up for Chinese'
+        : 'Tippen oder nach oben wischen für Chinesisch',
+      tapAgainGerman: isEn
+        ? 'Tap or swipe up for German'
+        : 'Tippen oder wischen für Deutsch',
+      showGermanBtn: isEn ? 'German' : 'Deutsch',
+      germanSecondaryLabel: isEn ? 'German (secondary):' : 'Deutsch (Sekundär):',
       ratings: isEn
         ? [
             { key: '1' as const, label: '1 · Again', sub: 'now' },
@@ -136,9 +147,12 @@ export function getUiStrings(lang: UiLanguage = 'de') {
         ? 'Simplified Chinese (Hanzi) *'
         : 'Vereinfachtes Chinesisch (Hanzi) *',
       pinyinLabel: isEn ? 'Pinyin (with tone marks)' : 'Pinyin (mit Tonzeichen)',
+      englishMeaningLabel: isEn
+        ? 'English Meaning *'
+        : 'Englische Bedeutung *',
       germanMeaningLabel: isEn
-        ? 'German Meaning *'
-        : 'Deutsche Bedeutung *',
+        ? 'German Meaning (optional secondary)'
+        : 'Deutsche Bedeutung (optional)',
       modeLabel: isEn ? 'Study Mode' : 'Lernmodus',
       grammarLabel: isEn ? 'Part of Speech / Note' : 'Wortart / Hinweis',
       addCardBtn: isEn ? 'Add Card' : 'Karte hinzufügen',
@@ -177,41 +191,41 @@ export function getUiStrings(lang: UiLanguage = 'de') {
         : 'App-Sprache, Standard-Lernrichtung, Kartentypen und Darstellung anpassen',
       uiLangTitle: isEn ? 'App UI Language' : 'App-Sprache (Oberfläche)',
       uiLangDesc: isEn
-        ? 'Only changes buttons and menus — flashcards stay Chinese ↔ German'
-        : 'Ändert nur Menüs & Buttons — Lernkarten bleiben Chinesisch ↔ Deutsch',
+        ? 'Switches menus and buttons — flashcards stay English ↔ Chinese primary (with optional German)'
+        : 'Ändert Menüs & Buttons — Lernkarten bleiben Englisch ↔ Chinesisch primär (Deutsch sekundär)',
       directionTitle: isEn ? 'Card Direction (Default)' : 'Kartenrichtung (Standard)',
       directionDesc: isEn
-        ? 'Starting direction for vocab cards. Manual switching during a session stays independent.'
-        : 'Startrichtung für Vokabelkarten. Ein manueller Richtungswechsel während einer aktiven Sitzung bleibt davon unberührt.',
-      dirZhDe: isEn ? 'Chinese → German' : 'Chinesisch → Deutsch',
-      dirDeZh: isEn ? 'German → Chinese' : 'Deutsch → Chinesisch',
+        ? 'Starting direction for vocab cards. You can also flip anytime while studying.'
+        : 'Startrichtung für Vokabelkarten. Ein manueller Richtungswechsel beim Lernen bleibt jederzeit möglich.',
+      dirZhEn: isEn ? 'Chinese → English' : 'Chinesisch → Englisch',
+      dirEnZh: isEn ? 'English → Chinese' : 'Englisch → Chinesisch',
       modesTitle: isEn ? 'Enabled Study Modes' : 'Aktivierte Lernmodi',
       modesDesc: isEn
         ? 'Choose which card types appear in mixed mode ("All Modes")'
         : 'Wähle, welche Kartentypen im gemischten Modus („Alle Modi“) abgefragt werden',
       modeVocab: isEn ? 'Vocab' : 'Vokabeln',
       modeVocabDesc: isEn
-        ? 'Characters, Pinyin & German meaning'
-        : 'Schriftzeichen, Pinyin & deutsche Bedeutung',
+        ? 'Characters, Pinyin & English meaning (German secondary)'
+        : 'Schriftzeichen, Pinyin & englische Bedeutung (Deutsch sekundär)',
       modeWriting: isEn ? 'Writing' : 'Schreiben',
       modeWritingDesc: isEn
-        ? 'Type simplified characters using keyboard'
-        : 'Vereinfachte Schriftzeichen per Tastatur eingeben',
+        ? 'Type simplified characters from English prompt'
+        : 'Vereinfachte Schriftzeichen nach englischer Vorgabe eingeben',
       modeListening: isEn ? 'Listening' : 'Hören',
       modeListeningDesc: isEn
-        ? 'Understand spoken Mandarin without text hints'
-        : 'Gesprochenes Mandarin ohne Text-Hilfe verstehen',
+        ? 'Understand spoken Mandarin sentences (English primary)'
+        : 'Gesprochenes Mandarin verstehen (Englisch primär)',
       pinyinTitle: isEn ? 'Show Pinyin' : 'Pinyin-Anzeige',
       pinyinDesc: isEn
-        ? 'Display Pinyin pronunciation aid on the front of vocab cards'
-        : 'Zeige Pinyin als Aussprachehilfe auf der Vorderseite von Vokabelkarten',
+        ? 'Display Pinyin pronunciation aid on vocab cards'
+        : 'Zeige Pinyin als Aussprachehilfe auf Vokabelkarten',
       pinyinOn: isEn ? 'Pinyin visible (píngguǒ)' : 'Pinyin sichtbar (píngguǒ)',
       pinyinOff: isEn ? 'Characters only (苹果)' : 'Nur Schriftzeichen (苹果)',
       accentTitle: isEn ? 'Color Accent' : 'Farbakzent',
       accentDesc: isEn ? 'Soft pastel stationery theme' : 'Sanftes Pastell-Farbschema',
       profileNote: isEn
-        ? 'Flashcards: German ↔ Simplified Chinese (Mandarin)'
-        : 'Sprachprofil: Deutsch → Vereinfachtes Chinesisch',
+        ? 'Flashcards: English ↔ Simplified Chinese (Mandarin) · German secondary'
+        : 'Sprachprofil: Englisch ↔ Vereinfachtes Chinesisch (Deutsch sekundär)',
       resetBtn: isEn ? 'Reset Demo Data' : 'Beispieldaten zurücksetzen',
       resetDone: isEn ? 'Demo Data Restored ✓' : 'Beispieldaten wiederhergestellt ✓',
     },
@@ -228,8 +242,8 @@ export function getUiStrings(lang: UiLanguage = 'de') {
       traditional: isEn ? 'Traditional:' : 'Traditionell:',
       listenBtn: isEn ? 'Listen to Mandarin' : 'Mandarin anhören',
       listenPrompt: isEn
-        ? 'Listen to the Mandarin word and choose its German meaning'
-        : 'Höre das Mandarin-Wort und wähle die Bedeutung',
+        ? 'Listen to the Mandarin word and choose its English meaning'
+        : 'Höre das Mandarin-Wort und wähle die englische Bedeutung',
       skipUnknown: isEn
         ? "I don't know this yet / skip"
         : 'Kenne ich noch nicht / überspringen',

@@ -37,6 +37,7 @@ import {
   computeDeckLoopProgressPct,
   createInitialDeckLoopState,
   DeckLoopState,
+  normalizeStudyDirection,
 } from '../utils/confidenceLoopEngine';
 import {
   SakuraBranchCorner,
@@ -80,7 +81,8 @@ export const StudySection: React.FC<StudySectionProps> = ({
   onBackHome,
   onOpenSettings,
 }) => {
-  const t = getUiStrings(settings.uiLanguage ?? 'de').study;
+  const t = getUiStrings(settings.uiLanguage ?? 'en').study;
+  const activeDirection = normalizeStudyDirection(settings.defaultDirection);
   const [activeModeFilter, setActiveModeFilter] = useState<SessionModeFilter>('all');
   const [isRevealed, setIsRevealed] = useState(false);
   const [showGerman, setShowGerman] = useState(false);
@@ -91,6 +93,7 @@ export const StudySection: React.FC<StudySectionProps> = ({
   const [showModePicker, setShowModePicker] = useState(false);
   const [sessionSeed, setSessionSeed] = useState(0);
 
+  const touchStartYRef = useRef<number | null>(null);
   const writingInputRef = useRef<HTMLInputElement>(null);
   const { speak, stopSpeech, prefetchAudio, isSpeaking, isLoadingAudio } =
     useMandarinSpeech();
@@ -576,10 +579,41 @@ export const StudySection: React.FC<StudySectionProps> = ({
                   const isDivergent =
                     currentCard.cantoneseBridge === 'non_cognate' ||
                     currentCard.cantoneseBridge === 'false_friend';
+                  const isChineseFront = activeDirection !== 'en-to-zh';
+                  const primaryMeaning = currentCard.english || currentCard.german;
+                  const secondaryGerman =
+                    currentCard.english &&
+                    currentCard.german &&
+                    currentCard.german !== currentCard.english
+                      ? currentCard.german
+                      : null;
+                  const bridgeNoteText =
+                    (settings.uiLanguage === 'de' && currentCard.bridgeNoteDe) ||
+                    currentCard.bridgeNote;
+
+                  const advanceCardDisclosure = () => {
+                    if (!isRevealed) {
+                      handleRevealAnswer();
+                    } else if (!showGerman && secondaryGerman) {
+                      setShowGerman(true);
+                    }
+                  };
 
                   return (
                     <div
-                      className={`relative overflow-hidden rounded-3xl border-2 p-5 sm:p-8 min-h-[330px] sm:min-h-[360px] flex flex-col transition-colors duration-200 shadow-xs ${cardSurfaceClass}`}
+                      onTouchStart={(e) => {
+                        touchStartYRef.current = e.touches[0]?.clientY ?? null;
+                      }}
+                      onTouchEnd={(e) => {
+                        if (touchStartYRef.current === null) return;
+                        const endY = e.changedTouches[0]?.clientY ?? touchStartYRef.current;
+                        const deltaY = endY - touchStartYRef.current;
+                        touchStartYRef.current = null;
+                        if (deltaY < -35) {
+                          advanceCardDisclosure();
+                        }
+                      }}
+                      className={`relative overflow-hidden rounded-3xl border-2 p-5 sm:p-8 min-h-[340px] sm:min-h-[370px] flex flex-col transition-colors duration-200 shadow-xs ${cardSurfaceClass}`}
                     >
                       <div className="pointer-events-none absolute top-2 right-2.5 opacity-90">
                         <SakuraBranchCorner className="w-8 h-6" />
@@ -617,108 +651,177 @@ export const StudySection: React.FC<StudySectionProps> = ({
                         )}
                       </div>
 
-                      {/* MODE 1: VOCABULARY — Progressive disclosure: tap card → English; tap again → German */}
+                      {/* MODE 1: VOCABULARY — Progressive disclosure: tap/swipe → primary back; tap/swipe/btn → German */}
                       {effectiveMode === 'vocab' && (
                         <div
                           className="relative z-10 flex-1 flex flex-col cursor-pointer select-none"
                           onClick={(e) => {
-                            // Don't flip if clicking the audio button
                             if ((e.target as HTMLElement).closest('button')) return;
-                            if (!isRevealed) {
-                              handleRevealAnswer();
-                            } else if (!showGerman) {
-                              setShowGerman(true);
-                            }
+                            advanceCardDisclosure();
                           }}
                         >
-                          {/* Always-visible top 40%: Chinese character */}
-                          <div className="flex flex-col items-center justify-center pt-4 pb-3 border-b border-[#E6D7C8]/60">
-                            <p className="font-chinese text-5xl sm:text-6xl font-bold text-[#49352D] tracking-wide leading-tight select-all">
-                              {currentCard.hanzi}
-                            </p>
-                            {currentCard.traditional && currentCard.traditional !== currentCard.hanzi && (
-                              <p className="mt-1 text-xs font-semibold text-[#8C7568]">
-                                {t.traditionalLabel}{' '}
-                                <span className="font-chinese">{currentCard.traditional}</span>
-                              </p>
-                            )}
-                            <div className="mt-3 flex items-center justify-center gap-2.5">
-                              <button
-                                onClick={(e) => { e.stopPropagation(); playCurrentMandarin(); }}
-                                aria-label="Play pronunciation"
-                                className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
-                                  isSpeaking
-                                    ? 'bg-[#E98F9C] text-white scale-105'
-                                    : 'bg-[#FAD7DC]/80 text-[#49352D] hover:bg-[#F4B5BE]'
-                                }`}
-                              >
-                                {isLoadingAudio ? (
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                  <Volume2 className="w-5 h-5" />
+                          {/* Upper ~40%: stays visible on top after flip */}
+                          <div className="flex flex-col items-center justify-center pt-4 pb-3 border-b border-[#E6D7C8]/60 text-center">
+                            {isChineseFront ? (
+                              <>
+                                <p className="font-chinese text-5xl sm:text-6xl font-bold text-[#49352D] tracking-wide leading-tight select-all">
+                                  {currentCard.hanzi}
+                                </p>
+                                {currentCard.traditional &&
+                                  currentCard.traditional !== currentCard.hanzi && (
+                                    <p className="mt-1 text-xs font-semibold text-[#8C7568]">
+                                      {t.traditionalLabel}{' '}
+                                      <span className="font-chinese">
+                                        {currentCard.traditional}
+                                      </span>
+                                    </p>
+                                  )}
+                                <div className="mt-3 flex items-center justify-center gap-2.5 flex-wrap">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      playCurrentMandarin();
+                                    }}
+                                    aria-label="Play pronunciation"
+                                    className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                                      isSpeaking
+                                        ? 'bg-[#E98F9C] text-white scale-105'
+                                        : 'bg-[#FAD7DC]/80 text-[#49352D] hover:bg-[#F4B5BE]'
+                                    }`}
+                                  >
+                                    {isLoadingAudio ? (
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                      <Volume2 className="w-5 h-5" />
+                                    )}
+                                  </button>
+                                  {settings.showPinyin && (
+                                    <span className="text-lg sm:text-xl font-bold text-[#6B5344]">
+                                      {currentCard.pinyin}
+                                    </span>
+                                  )}
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <p className="text-2xl sm:text-3xl font-bold text-[#49352D] leading-snug px-2">
+                                  {primaryMeaning}
+                                </p>
+                                {(currentCard.level || currentCard.grammar) && (
+                                  <p className="text-xs font-semibold text-[#8C7568] mt-1.5">
+                                    {currentCard.level}
+                                    {currentCard.grammar ? ` · ${currentCard.grammar}` : ''}
+                                  </p>
                                 )}
-                              </button>
-                              {settings.showPinyin && (
-                                <span className="text-lg sm:text-xl font-bold text-[#6B5344]">
-                                  {currentCard.pinyin}
-                                </span>
-                              )}
-                              {isDivergent && (
-                                <span className="px-2 py-0.5 rounded-full bg-[#FBE7D3] border border-[#E5BE96] text-[10px] font-bold text-[#6B421C]">
-                                  {t.cantoneseDiff}
-                                </span>
-                              )}
-                            </div>
+                              </>
+                            )}
                           </div>
 
-                          {/* Bottom 60%: revealed content */}
-                          <div className="flex-1 flex flex-col items-center justify-center px-2 pt-3 pb-1 min-h-[130px]">
+                          {/* Lower ~60%: revealed back + progressive German secondary disclosure */}
+                          <div className="flex-1 flex flex-col items-center justify-center px-2 pt-3 pb-1 min-h-[145px]">
                             {!isRevealed ? (
-                              /* Tap hint */
-                              <div className="flex flex-col items-center gap-1.5 opacity-50">
+                              <div className="flex flex-col items-center gap-1.5 opacity-60">
                                 <p className="text-xs font-semibold text-[#8C7568]">
-                                  {t.showAnswer}
+                                  {isChineseFront ? t.tapToRevealEn : t.tapToRevealZh}
                                 </p>
                               </div>
                             ) : (
-                              <div className="w-full flex flex-col items-center gap-2">
-                                {/* Primary: English translation */}
-                                <div className="px-4 py-2.5 rounded-2xl bg-[#FFFDF9]/90 border border-[#CEDBC0] w-full text-center">
-                                  <p className="text-xl sm:text-2xl font-bold text-[#49352D] leading-snug">
-                                    {currentCard.english || currentCard.german}
-                                  </p>
-                                  {(currentCard.grammar || currentCard.level) && (
-                                    <p className="text-xs font-semibold text-[#8C7568] mt-0.5">
-                                      {currentCard.level}{currentCard.grammar ? ` · ${currentCard.grammar}` : ''}
+                              <div className="w-full flex flex-col items-center gap-2.5">
+                                {isChineseFront ? (
+                                  <div className="px-4 py-2.5 rounded-2xl bg-[#FFFDF9]/90 border border-[#CEDBC0] w-full text-center">
+                                    <p className="text-xl sm:text-2xl font-bold text-[#49352D] leading-snug">
+                                      {primaryMeaning}
                                     </p>
-                                  )}
-                                </div>
-
-                                {/* Secondary: German — peek or fully shown */}
-                                {currentCard.english && currentCard.german && (
-                                  <div
-                                    className={`w-full text-center transition-all duration-300 ${showGerman ? 'opacity-100' : 'opacity-40'}`}
-                                  >
-                                    {showGerman ? (
-                                      <div className="px-4 py-2 rounded-xl bg-[#F5EBE0]/60 border border-[#E0CFC0] w-full">
-                                        <p className="text-sm font-semibold text-[#6B5344]">
-                                          🇩🇪 {currentCard.german}
-                                        </p>
-                                        {currentCard.bridgeNote && (
-                                          <p className="text-xs font-bold text-[#8A5A2B] mt-1">
-                                            {currentCard.bridgeNote}
-                                          </p>
-                                        )}
-                                      </div>
-                                    ) : (
-                                      <p className="text-xs font-semibold text-[#8C7568] italic truncate px-2">
-                                        🇩🇪 {currentCard.german.length > 40 ? currentCard.german.slice(0, 40) + '…' : currentCard.german}
+                                    {(currentCard.level || currentCard.grammar) && (
+                                      <p className="text-xs font-semibold text-[#8C7568] mt-0.5">
+                                        {currentCard.level}
+                                        {currentCard.grammar
+                                          ? ` · ${currentCard.grammar}`
+                                          : ''}
                                       </p>
                                     )}
-                                    {!showGerman && (
-                                      <p className="text-[10px] text-[#B0A090] mt-0.5">
-                                        tap again for German
+                                    {bridgeNoteText && (
+                                      <p className="text-xs font-bold text-[#8A5A2B] mt-1.5">
+                                        {bridgeNoteText}
                                       </p>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div className="px-4 py-3 rounded-2xl bg-[#FFFDF9]/90 border border-[#CEDBC0] w-full text-center">
+                                    <p className="font-chinese text-4xl sm:text-5xl font-bold text-[#49352D] leading-tight select-all">
+                                      {currentCard.hanzi}
+                                    </p>
+                                    {currentCard.traditional &&
+                                      currentCard.traditional !== currentCard.hanzi && (
+                                        <p className="mt-1 text-xs font-semibold text-[#8C7568]">
+                                          {t.traditionalLabel}{' '}
+                                          <span className="font-chinese">
+                                            {currentCard.traditional}
+                                          </span>
+                                        </p>
+                                      )}
+                                    <div className="mt-2.5 flex items-center justify-center gap-2.5">
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          playCurrentMandarin();
+                                        }}
+                                        aria-label="Play pronunciation"
+                                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                                          isSpeaking
+                                            ? 'bg-[#E98F9C] text-white scale-105'
+                                            : 'bg-[#FAD7DC]/80 text-[#49352D] hover:bg-[#F4B5BE]'
+                                        }`}
+                                      >
+                                        {isLoadingAudio ? (
+                                          <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                          <Volume2 className="w-4 h-4" />
+                                        )}
+                                      </button>
+                                      <span className="text-base sm:text-lg font-bold text-[#6B5344]">
+                                        {currentCard.pinyin}
+                                      </span>
+                                    </div>
+                                    {bridgeNoteText && (
+                                      <p className="text-xs font-bold text-[#8A5A2B] mt-1.5">
+                                        {bridgeNoteText}
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* Secondary back: German (lighter/smaller preview -> full reveal on click/swipe) */}
+                                {secondaryGerman && (
+                                  <div className="w-full flex flex-col items-center gap-1">
+                                    {showGerman ? (
+                                      <div className="px-3.5 py-2 rounded-xl bg-[#F5EBE0]/70 border border-[#E0CFC0] w-full text-center transition-all">
+                                        <p className="text-xs sm:text-sm font-semibold text-[#6B5344]">
+                                          <span className="text-[11px] uppercase tracking-wide text-[#8C7568] mr-1">
+                                            🇩🇪 {t.showGermanBtn}:
+                                          </span>
+                                          {secondaryGerman}
+                                        </p>
+                                      </div>
+                                    ) : (
+                                      <div className="w-full flex items-center justify-between gap-2 px-1 pt-0.5">
+                                        <p className="text-xs font-medium text-[#8C7568]/75 italic truncate">
+                                          🇩🇪 {secondaryGerman}
+                                        </p>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setShowGerman(true);
+                                          }}
+                                          className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#F5EBE0]/90 hover:bg-[#EADFD2] border border-[#E0CFC0] text-[11px] font-bold text-[#6B5344] cursor-pointer transition-colors"
+                                        >
+                                          <Eye className="w-3 h-3" />
+                                          <span>{t.showGermanBtn}</span>
+                                        </button>
+                                      </div>
                                     )}
                                   </div>
                                 )}
@@ -737,12 +840,29 @@ export const StudySection: React.FC<StudySectionProps> = ({
                               className="w-full max-w-md mx-auto flex flex-col items-center"
                             >
                               <p className="text-2xl sm:text-3xl font-bold text-[#49352D]">
-                                {currentCard.german}
+                                {primaryMeaning}
                               </p>
                               <p className="text-xs font-semibold text-[#8C7568] mt-1">
-                                {currentCard.grammar || 'Wort'} · {currentCard.level || 'HSK 1'}
+                                {currentCard.grammar || 'Word'} · {currentCard.level || 'HSK 1'}
                                 {settings.showPinyin ? ` · Pinyin: ${currentCard.pinyin}` : ''}
                               </p>
+                              {secondaryGerman && (
+                                <div className="mt-2">
+                                  {showGerman ? (
+                                    <p className="text-xs font-semibold text-[#6B5344]">
+                                      🇩🇪 {secondaryGerman}
+                                    </p>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowGerman(true)}
+                                      className="text-[11px] font-bold text-[#8C7568] hover:text-[#49352D] underline cursor-pointer"
+                                    >
+                                      🇩🇪 {t.showGermanBtn}
+                                    </button>
+                                  )}
+                                </div>
+                              )}
 
                               <div className="mt-5 w-full relative">
                                 <input
@@ -788,7 +908,7 @@ export const StudySection: React.FC<StudySectionProps> = ({
                           ) : (
                             <div className="w-full max-w-md mx-auto flex flex-col items-center">
                               <p className="text-sm font-bold text-[#6B5344]">
-                                {currentCard.german}
+                                {primaryMeaning}
                               </p>
                               <p className="mt-2 font-chinese text-5xl sm:text-6xl font-bold text-[#49352D] tracking-wide">
                                 {currentCard.hanzi}
@@ -942,12 +1062,38 @@ export const StudySection: React.FC<StudySectionProps> = ({
                                 </button>
                               </div>
 
-                              {/* German meaning box — no German TTS button (Mandarin audio only) */}
+                              {/* Primary English meaning box — secondary German revealed progressively */}
                               <div className="mt-5 w-full bg-[#EFE7DC]/90 border border-[#DFD1C1] rounded-2xl px-4 py-3 text-center">
                                 <span className="text-sm sm:text-base font-bold text-[#49352D]">
-                                  {currentCard.german}
+                                  {primaryMeaning}
                                 </span>
                               </div>
+
+                              {secondaryGerman && (
+                                <div className="mt-2.5 w-full flex flex-col items-center">
+                                  {showGerman ? (
+                                    <div className="px-3.5 py-2 rounded-xl bg-[#F5EBE0]/70 border border-[#E0CFC0] w-full text-center">
+                                      <p className="text-xs sm:text-sm font-semibold text-[#6B5344]">
+                                        🇩🇪 {secondaryGerman}
+                                      </p>
+                                    </div>
+                                  ) : (
+                                    <div className="w-full flex items-center justify-between gap-2 px-1">
+                                      <p className="text-xs font-medium text-[#8C7568]/75 italic truncate">
+                                        🇩🇪 {secondaryGerman}
+                                      </p>
+                                      <button
+                                        type="button"
+                                        onClick={() => setShowGerman(true)}
+                                        className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#F5EBE0]/90 hover:bg-[#EADFD2] border border-[#E0CFC0] text-[11px] font-bold text-[#6B5344] cursor-pointer transition-colors"
+                                      >
+                                        <Eye className="w-3 h-3" />
+                                        <span>{t.showGermanBtn}</span>
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
@@ -1001,24 +1147,24 @@ export const StudySection: React.FC<StudySectionProps> = ({
               <div className="w-full flex flex-wrap items-center justify-between gap-2.5">
                 <div className="flex items-center gap-1.5 bg-[#FFFDF9] border border-[#E6D7C8] rounded-full p-1 shadow-2xs">
                   <button
-                    onClick={() => onUpdateDirection('zh-to-de')}
+                    onClick={() => onUpdateDirection('zh-to-en')}
                     className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                      settings.defaultDirection === 'zh-to-de'
+                      activeDirection === 'zh-to-en'
                         ? 'bg-[#E98F9C] text-white shadow-2xs'
                         : 'text-[#6B5344] hover:text-[#49352D]'
                     }`}
                   >
-                    中文 → Deutsch
+                    中文 → English
                   </button>
                   <button
-                    onClick={() => onUpdateDirection('de-to-zh')}
+                    onClick={() => onUpdateDirection('en-to-zh')}
                     className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                      settings.defaultDirection === 'de-to-zh'
+                      activeDirection === 'en-to-zh'
                         ? 'bg-[#E98F9C] text-white shadow-2xs'
                         : 'text-[#6B5344] hover:text-[#49352D]'
                     }`}
                   >
-                    Deutsch → 中文
+                    English → 中文
                   </button>
                 </div>
 

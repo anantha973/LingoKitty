@@ -28,7 +28,7 @@ interface AnswerRecord {
 
 export const PlacementQuizModal: React.FC<PlacementQuizModalProps> = ({
   questions,
-  uiLanguage = 'de',
+  uiLanguage = 'en',
   onClose,
   onComplete,
 }) => {
@@ -120,7 +120,8 @@ export const PlacementQuizModal: React.FC<PlacementQuizModalProps> = ({
 
   const handleAnswer = (option: string | null) => {
     if (!current || selectedOption !== null) return;
-    const isCorrect = option !== null && option === current.german;
+    const expected = current.english || current.german;
+    const isCorrect = option !== null && option === expected;
     setSelectedOption(option ?? '__skip__');
 
     const nextAnswers = [...answers, { question: current, correct: isCorrect }];
@@ -277,7 +278,7 @@ export const PlacementQuizModal: React.FC<PlacementQuizModalProps> = ({
             <div className="grid grid-cols-1 gap-2">
               {current.options.map((opt) => {
                 const isSelected = selectedOption === opt;
-                const isRight = opt === current.german;
+                const isRight = opt === (current.english || current.german);
                 let style =
                   'bg-[#FFFDF9] border-[#E6D7C8] text-[#49352D] hover:bg-[#F5E9DC]/60';
                 if (selectedOption !== null) {

@@ -1,4 +1,4 @@
-export type StudyDirection = 'zh-to-de' | 'de-to-zh';
+export type StudyDirection = 'zh-to-en' | 'en-to-zh';
 export type StudyMode = 'vocab' | 'writing' | 'listening';
 export type SessionModeFilter = 'all' | StudyMode;
 
@@ -50,6 +50,7 @@ export interface Flashcard {
   audioSlowUrl?: string;
   cantoneseBridge?: CantoneseBridgeKind;
   bridgeNote?: string;
+  bridgeNoteDe?: string;
   grammarTags?: string[];
   tokens?: SentenceToken[];
   illustration?: 'apple' | 'water' | 'coffee' | 'tea' | 'cat' | 'flower' | 'dango' | 'book';
@@ -90,6 +91,7 @@ export interface PlacementQuestion {
   hanzi: string;
   traditional?: string;
   pinyin: string;
+  english?: string;
   german: string;
   options: string[];
   audioUrl: string;
