@@ -143,7 +143,9 @@ export const DecksSection: React.FC<DecksSectionProps> = ({
             const progressPct = total > 0 ? Math.round((learned / total) * 100) : 0;
 
             const vocabCount = deckCards.filter((c) => c.mode === 'vocab').length;
-            const writingCount = deckCards.filter((c) => c.mode === 'writing').length;
+            const writingCount = deckCards.filter(
+              (c) => c.mode === 'writing' || c.mode === 'vocab'
+            ).length;
             const listeningCount = deckCards.filter((c) => c.mode === 'listening').length;
 
             const surfaceStyle =

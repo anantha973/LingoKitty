@@ -222,8 +222,15 @@ export default function App() {
 
   const handleCompletePlacement = useCallback(
     (result: PlacementResult) => {
+      const calibratedSrs = applyPlacementCalibration(cards, srsMap, result);
       setPlacement(result);
-      setSrsMap((prev) => applyPlacementCalibration(cards, prev, result));
+      setSrsMap(calibratedSrs);
+      setCards((prev) =>
+        prev.map((c) => {
+          const st = calibratedSrs[c.id];
+          return st?.mastered ? { ...c, learned: true, lastRating: st.lastRating } : c;
+        })
+      );
       setShowPlacementModal(false);
 
       const recommendedDeck =
@@ -231,7 +238,7 @@ export default function App() {
       setSelectedDeckId(recommendedDeck);
       setActiveSection('study');
     },
-    [cards]
+    [cards, srsMap]
   );
 
   const handleCreateDeck = useCallback(
