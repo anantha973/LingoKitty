@@ -6,10 +6,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   AppSection,
+  CardSrsState,
   Deck,
   DeckIllustrationType,
   DeckTheme,
   Flashcard,
+  PlacementResult,
   ReviewRating,
   StudyDirection,
   StudyMode,
@@ -19,8 +21,10 @@ import {
 import {
   INITIAL_CARDS,
   INITIAL_DECKS,
+  INITIAL_PLACEMENT,
   INITIAL_SETTINGS,
   INITIAL_STATS,
+  PLACEMENT_QUESTIONS,
 } from './data/initialData';
 import { DesktopSidebar, MobileBottomNav } from './components/Navigation';
 import { HomeDashboard } from './components/HomeDashboard';
@@ -28,12 +32,21 @@ import { StudySection } from './components/StudySection';
 import { DecksSection } from './components/DecksSection';
 import { ProgressSection } from './components/ProgressSection';
 import { SettingsSection } from './components/SettingsSection';
+import { PlacementQuizModal } from './components/PlacementQuizModal';
+import {
+  applyPlacementCalibration,
+  computeNextSrsState,
+  getCardSrsForDirection,
+} from './utils/srsEngine';
+import { getSrsStateKey, normalizeRatingKey } from './utils/confidenceLoopEngine';
 
 const STORAGE_KEYS = {
-  DECKS: 'zwkp_decks_v1',
-  CARDS: 'zwkp_cards_v1',
+  DECKS: 'zwkp_decks_v2',
+  CARDS: 'zwkp_cards_v2',
   SETTINGS: 'zwkp_settings_v1',
-  STATS: 'zwkp_stats_v1',
+  STATS: 'zwkp_stats_v2',
+  SRS: 'zwkp_srs_v2',
+  PLACEMENT: 'zwkp_placement_v1',
 };
 
 function loadFromStorage<T>(key: string, fallback: T): T {
@@ -61,9 +74,16 @@ export default function App() {
   const [stats, setStats] = useState<StudyStats>(() =>
     loadFromStorage(STORAGE_KEYS.STATS, INITIAL_STATS)
   );
-  const [selectedDeckId, setSelectedDeckId] = useState<string>('hsk1');
+  const [srsMap, setSrsMap] = useState<Record<string, CardSrsState>>(() =>
+    loadFromStorage(STORAGE_KEYS.SRS, {})
+  );
+  const [placement, setPlacement] = useState<PlacementResult>(() =>
+    loadFromStorage(STORAGE_KEYS.PLACEMENT, INITIAL_PLACEMENT)
+  );
 
-  // Persist changes to localStorage
+  const [selectedDeckId, setSelectedDeckId] = useState<string>('cantonese-bridge');
+  const [showPlacementModal, setShowPlacementModal] = useState(false);
+
   useEffect(() => {
     try {
       window.localStorage.setItem(STORAGE_KEYS.DECKS, JSON.stringify(decks));
@@ -96,16 +116,29 @@ export default function App() {
     }
   }, [stats]);
 
-  const handleStartStudy = useCallback(
-    (deckId?: string) => {
-      if (deckId) {
-        setSelectedDeckId(deckId);
-      }
-      setActiveSection('study');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    },
-    []
-  );
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(STORAGE_KEYS.SRS, JSON.stringify(srsMap));
+    } catch {
+      // ignore storage errors
+    }
+  }, [srsMap]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(STORAGE_KEYS.PLACEMENT, JSON.stringify(placement));
+    } catch {
+      // ignore storage errors
+    }
+  }, [placement]);
+
+  const handleStartStudy = useCallback((deckId?: string) => {
+    if (deckId) {
+      setSelectedDeckId(deckId);
+    }
+    setActiveSection('study');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
 
   const handleNavigate = useCallback((section: AppSection) => {
     setActiveSection(section);
@@ -120,7 +153,6 @@ export default function App() {
     setSettings((prev) => {
       const nextValue = !prev.enabledModes[mode];
       const updated = { ...prev.enabledModes, [mode]: nextValue };
-      // Ensure at least one learning mode stays enabled
       if (!updated.vocab && !updated.writing && !updated.listening) {
         return prev;
       }
@@ -142,37 +174,65 @@ export default function App() {
     []
   );
 
-  const handleRateCard = useCallback((cardId: string, rating: ReviewRating) => {
-    setCards((prev) =>
-      prev.map((c) =>
-        c.id === cardId
-          ? {
-              ...c,
-              lastRating: rating,
-              learned: rating === 'good' ? true : rating === 'again' ? false : c.learned,
-            }
-          : c
-      )
-    );
+  const handleRateCard = useCallback(
+    (cardId: string, rating: ReviewRating, direction: StudyDirection = 'zh-to-de') => {
+      const norm = normalizeRatingKey(rating) ?? '1';
+      const ratingNum = Number(norm);
+      const targetCard = cards.find((c) => c.id === cardId);
 
-    setStats((prev) => {
-      const isCorrect = rating === 'good' || rating === 'hard';
-      const nextTodayLearned = prev.todayLearned + 1;
-      const nextTodayCorrect = isCorrect ? prev.todayCorrect + 1 : prev.todayCorrect;
-      const nextTodayWrong = !isCorrect ? prev.todayWrong + 1 : prev.todayWrong;
-      const nextDueToday = Math.max(0, prev.dueToday - 1);
-      const nextAccuracy = Math.round((nextTodayCorrect / nextTodayLearned) * 100);
+      setSrsMap((prev) => {
+        const current = getCardSrsForDirection(prev, cardId, direction);
+        const updated = computeNextSrsState(current, norm, targetCard);
+        const key = getSrsStateKey(cardId, direction);
+        return { ...prev, [key]: updated };
+      });
 
-      return {
-        ...prev,
-        todayLearned: nextTodayLearned,
-        todayCorrect: nextTodayCorrect,
-        todayWrong: nextTodayWrong,
-        dueToday: nextDueToday,
-        weeklyAccuracy: nextAccuracy,
-      };
-    });
-  }, []);
+      setCards((prev) =>
+        prev.map((c) =>
+          c.id === cardId
+            ? {
+                ...c,
+                lastRating: norm,
+                learned: ratingNum >= 4 ? true : ratingNum <= 2 ? false : c.learned,
+              }
+            : c
+        )
+      );
+
+      setStats((prev) => {
+        const isCorrect = ratingNum >= 3;
+        const nextTodayLearned = prev.todayLearned + 1;
+        const nextTodayCorrect = isCorrect ? prev.todayCorrect + 1 : prev.todayCorrect;
+        const nextTodayWrong = !isCorrect ? prev.todayWrong + 1 : prev.todayWrong;
+        const nextDueToday = Math.max(0, prev.dueToday - 1);
+        const nextAccuracy = Math.round((nextTodayCorrect / nextTodayLearned) * 100);
+
+        return {
+          ...prev,
+          todayLearned: nextTodayLearned,
+          todayCorrect: nextTodayCorrect,
+          todayWrong: nextTodayWrong,
+          dueToday: nextDueToday,
+          weeklyAccuracy: nextAccuracy,
+        };
+      });
+    },
+    [cards]
+  );
+
+  const handleCompletePlacement = useCallback(
+    (result: PlacementResult) => {
+      setPlacement(result);
+      setSrsMap((prev) => applyPlacementCalibration(cards, prev, result));
+      setShowPlacementModal(false);
+
+      const recommendedDeck =
+        result.recommendedHskLevel >= 2 ? 'hsk2-words' : 'cantonese-bridge';
+      setSelectedDeckId(recommendedDeck);
+      setActiveSection('study');
+    },
+    [cards]
+  );
 
   const handleCreateDeck = useCallback(
     (
@@ -192,16 +252,18 @@ export default function App() {
       };
       setDecks((prev) => [...prev, newDeck]);
 
-      // Add a default starter card so the deck is immediately playable
       const starterCard: Flashcard = {
         id: `c-${Date.now()}`,
         deckId: newDeckId,
         hanzi: '学习',
+        traditional: '學習',
         pinyin: 'xuéxí',
         german: 'lernen / studieren',
         grammar: 'Verb',
         level: category,
+        hskLevel: 1,
         mode: 'vocab',
+        cantoneseBridge: 'simplified_diff',
         illustration: 'flower',
         learned: false,
       };
@@ -224,23 +286,26 @@ export default function App() {
     setCards(INITIAL_CARDS);
     setSettings(INITIAL_SETTINGS);
     setStats(INITIAL_STATS);
-    setSelectedDeckId('hsk1');
+    setSrsMap({});
+    setPlacement(INITIAL_PLACEMENT);
+    setSelectedDeckId('cantonese-bridge');
   }, []);
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-[#F8F1E7] text-[#49352D]">
-      {/* Desktop Left Sidebar matching Reference 3 */}
       <DesktopSidebar activeSection={activeSection} onNavigate={handleNavigate} />
 
-      {/* Main Content Area */}
       <main className="flex-1 px-4 pt-5 pb-24 md:px-8 md:py-8 overflow-y-auto">
         {activeSection === 'home' && (
           <HomeDashboard
             decks={decks}
             cards={cards}
             stats={stats}
+            srsMap={srsMap}
+            placement={placement}
             onStartStudy={handleStartStudy}
             onOpenDecks={() => handleNavigate('decks')}
+            onOpenPlacement={() => setShowPlacementModal(true)}
           />
         )}
 
@@ -248,6 +313,7 @@ export default function App() {
           <StudySection
             decks={decks}
             cards={cards}
+            srsMap={srsMap}
             selectedDeckId={selectedDeckId}
             onSelectDeck={setSelectedDeckId}
             settings={settings}
@@ -285,8 +351,15 @@ export default function App() {
         )}
       </main>
 
-      {/* Mobile Compact Bottom Tab Bar */}
       <MobileBottomNav activeSection={activeSection} onNavigate={handleNavigate} />
+
+      {showPlacementModal && (
+        <PlacementQuizModal
+          questions={PLACEMENT_QUESTIONS}
+          onClose={() => setShowPlacementModal(false)}
+          onComplete={handleCompletePlacement}
+        />
+      )}
     </div>
   );
 }

@@ -10,16 +10,21 @@ import {
   Headphones,
   Volume2,
   Eye,
-  RotateCw,
   Check,
   X,
   Play,
   Keyboard,
   Layers,
+  Loader2,
+  Sparkles,
+  RotateCcw,
 } from 'lucide-react';
 import {
+  CantoneseBridgeKind,
+  CardSrsState,
   Deck,
   Flashcard,
+  RatingKey,
   ReviewRating,
   SessionModeFilter,
   StudyDirection,
@@ -27,6 +32,12 @@ import {
   UserSettings,
 } from '../types';
 import { useMandarinSpeech } from '../hooks/useMandarinSpeech';
+import {
+  applyLoopRating,
+  computeDeckLoopProgressPct,
+  createInitialDeckLoopState,
+  DeckLoopState,
+} from '../utils/confidenceLoopEngine';
 import {
   CatHoldingApple,
   CatWritingNotebook,
@@ -40,19 +51,59 @@ import {
 interface StudySectionProps {
   decks: Deck[];
   cards: Flashcard[];
+  srsMap: Record<string, CardSrsState>;
   selectedDeckId: string;
   onSelectDeck: (deckId: string) => void;
   settings: UserSettings;
   onUpdateDirection: (dir: StudyDirection) => void;
   onTogglePinyin: () => void;
-  onRateCard: (cardId: string, rating: ReviewRating) => void;
+  onRateCard: (cardId: string, rating: ReviewRating, direction: StudyDirection) => void;
   onBackHome: () => void;
   onOpenSettings: () => void;
 }
 
+const CONFIDENCE_BUTTONS: {
+  key: RatingKey;
+  label: string;
+  sub: string;
+  cls: string;
+}[] = [
+  {
+    key: '1',
+    label: '1 · Nochmal',
+    sub: 'sofort',
+    cls: 'bg-[#FAD7DC] hover:bg-[#F4B5BE] border-[#E598A4] text-[#49352D]',
+  },
+  {
+    key: '2',
+    label: '2 · Schwer',
+    sub: 'kurz',
+    cls: 'bg-[#FBE7D3] hover:bg-[#F5D6B8] border-[#E5BE96] text-[#49352D]',
+  },
+  {
+    key: '3',
+    label: '3 · Geht',
+    sub: 'mittel',
+    cls: 'bg-[#F3E9DC] hover:bg-[#E6D7C8] border-[#D8C5B4] text-[#49352D]',
+  },
+  {
+    key: '4',
+    label: '4 · Gut',
+    sub: 'sicher',
+    cls: 'bg-[#E5EFD9] hover:bg-[#D5E5C2] border-[#B4C89D] text-[#3F5232]',
+  },
+  {
+    key: '5',
+    label: '5 · Sofort',
+    sub: 'fast-track',
+    cls: 'bg-[#DCE8CE] hover:bg-[#C8D9B5] border-[#96B07E] text-[#2F4222]',
+  },
+];
+
 export const StudySection: React.FC<StudySectionProps> = ({
   decks,
   cards,
+  srsMap,
   selectedDeckId,
   onSelectDeck,
   settings,
@@ -63,87 +114,187 @@ export const StudySection: React.FC<StudySectionProps> = ({
   onOpenSettings,
 }) => {
   const [activeModeFilter, setActiveModeFilter] = useState<SessionModeFilter>('all');
-  const [currentIndex, setCurrentIndex] = useState(0);
   const [isRevealed, setIsRevealed] = useState(false);
   const [isShuffled, setIsShuffled] = useState(false);
+  const [slowAudio, setSlowAudio] = useState(false);
   const [writingInput, setWritingInput] = useState('');
   const [writingSubmitted, setWritingSubmitted] = useState(false);
   const [showModePicker, setShowModePicker] = useState(false);
+  const [sessionSeed, setSessionSeed] = useState(0);
 
   const writingInputRef = useRef<HTMLInputElement>(null);
-  const { speak, isSpeaking, stopSpeech } = useMandarinSpeech();
+  const { speak, stopSpeech, prefetchAudio, isSpeaking, isLoadingAudio } =
+    useMandarinSpeech();
 
   const currentDeck = useMemo(
     () => decks.find((d) => d.id === selectedDeckId) || decks[0],
     [decks, selectedDeckId]
   );
 
-  // Filter cards by deck and active mode filter (or settings enabledModes if 'all')
+  const deckCards = useMemo(
+    () => cards.filter((c) => c.deckId === currentDeck.id),
+    [cards, currentDeck.id]
+  );
+
+  // Determine cards eligible for the chosen mode filter.
+  // Word cards ('vocab') also support 'writing' practice without duplicating JSON records.
   const studyQueue = useMemo(() => {
-    const deckCards = cards.filter((c) => c.deckId === currentDeck.id);
     const filtered = deckCards.filter((card) => {
+      if (activeModeFilter === 'writing') {
+        return card.mode === 'writing' || card.mode === 'vocab';
+      }
       if (activeModeFilter !== 'all') {
         return card.mode === activeModeFilter;
       }
       return settings.enabledModes[card.mode];
     });
+    return filtered.length > 0 ? filtered : deckCards;
+  }, [deckCards, activeModeFilter, settings.enabledModes]);
 
-    const baseList = filtered.length > 0 ? filtered : deckCards;
-    if (!isShuffled) return baseList;
-    return [...baseList].sort((a, b) => a.id.localeCompare(b.id) * -1);
-  }, [cards, currentDeck.id, activeModeFilter, settings.enabledModes, isShuffled]);
+  const cardById = useMemo(() => {
+    const map = new Map<string, Flashcard>();
+    for (const c of studyQueue) map.set(c.id, c);
+    return map;
+  }, [studyQueue]);
 
-  const safeIndex = studyQueue.length > 0 ? Math.min(currentIndex, studyQueue.length - 1) : 0;
-  const currentCard = studyQueue[safeIndex];
+  const bridgeMap = useMemo(() => {
+    const map: Record<string, CantoneseBridgeKind | undefined> = {};
+    for (const c of studyQueue) map[c.id] = c.cantoneseBridge;
+    return map;
+  }, [studyQueue]);
 
-  // Reset card state when changing card, mode, or deck
+  // Confidence-loop state (achsoo reference engine)
+  const [loopState, setLoopState] = useState<DeckLoopState>(() =>
+    createInitialDeckLoopState(
+      currentDeck.id,
+      studyQueue.map((c) => c.id),
+      srsMap,
+      bridgeMap,
+      undefined,
+      settings.defaultDirection
+    )
+  );
+
+  // Re-initialize confidence loop when deck, mode filter, shuffle, or manual restart changes
+  useEffect(() => {
+    setLoopState(
+      createInitialDeckLoopState(
+        currentDeck.id,
+        studyQueue.map((c) => c.id),
+        srsMap,
+        bridgeMap,
+        undefined,
+        settings.defaultDirection,
+        isShuffled ? `shuffle-${currentDeck.id}-${sessionSeed}` : undefined
+      )
+    );
+    setIsRevealed(false);
+    setWritingInput('');
+    setWritingSubmitted(false);
+    stopSpeech();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentDeck.id, activeModeFilter, isShuffled, settings.defaultDirection, sessionSeed]);
+
+  const currentCard = loopState.currentCardId
+    ? cardById.get(loopState.currentCardId)
+    : undefined;
+
+  const effectiveMode: StudyMode =
+    activeModeFilter === 'writing'
+      ? 'writing'
+      : activeModeFilter === 'listening'
+      ? 'listening'
+      : currentCard?.mode ?? 'vocab';
+
+  // Reset per-card UI and prefetch next card's audio
   useEffect(() => {
     setIsRevealed(false);
     setWritingInput('');
     setWritingSubmitted(false);
     stopSpeech();
-  }, [safeIndex, activeModeFilter, selectedDeckId, stopSpeech]);
+
+    if (currentCard?.audioUrl) {
+      prefetchAudio(currentCard.audioUrl);
+    }
+    const nextCandidateId =
+      loopState.activePool.find((id) => id !== loopState.currentCardId) ??
+      loopState.waitingQueue[0];
+    const nextCard = nextCandidateId ? cardById.get(nextCandidateId) : undefined;
+    if (nextCard?.audioUrl) {
+      prefetchAudio(nextCard.audioUrl);
+    }
+  }, [
+    loopState.currentCardId,
+    loopState.virtualClock,
+    currentCard?.audioUrl,
+    loopState.activePool,
+    loopState.waitingQueue,
+    cardById,
+    prefetchAudio,
+    stopSpeech,
+  ]);
+
+  const playCurrentMandarin = (forceSlow?: boolean) => {
+    if (!currentCard) return;
+    speak(currentCard.hanzi, {
+      audioUrl: currentCard.audioUrl,
+      slowUrl: currentCard.audioSlowUrl,
+      slow: forceSlow ?? slowAudio,
+    });
+  };
 
   const handleSelectModeFilter = (mode: SessionModeFilter) => {
     setActiveModeFilter(mode);
-    setCurrentIndex(0);
-    setIsRevealed(false);
-    setWritingInput('');
-    setWritingSubmitted(false);
     setShowModePicker(false);
   };
 
-  const handlePrevCard = () => {
-    if (studyQueue.length === 0) return;
-    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : studyQueue.length - 1));
-  };
-
-  const handleNextCard = () => {
-    if (studyQueue.length === 0) return;
-    setCurrentIndex((prev) => (prev < studyQueue.length - 1 ? prev + 1 : 0));
+  const handleSkipNext = () => {
+    // Treat skip as a soft rate '3' inside the loop without altering SRS mastery
+    if (!currentCard) return;
+    setLoopState((prev) => applyLoopRating(prev, currentCard.id, '3'));
   };
 
   const handleCheckWriting = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setWritingSubmitted(true);
     setIsRevealed(true);
-    if (currentCard) {
-      speak(currentCard.hanzi, 'zh-CN');
-    }
+    playCurrentMandarin();
   };
 
   const handleRevealAnswer = () => {
     setIsRevealed(true);
-    if (currentCard && currentCard.mode === 'listening') {
-      speak(currentCard.hanzi, 'zh-CN');
+    if (currentCard && effectiveMode === 'listening') {
+      playCurrentMandarin();
     }
   };
 
-  const handleRateAndAdvance = (rating: ReviewRating) => {
+  const handleRateAndAdvance = (rating: RatingKey) => {
     if (!currentCard) return;
-    onRateCard(currentCard.id, rating);
-    handleNextCard();
+    onRateCard(currentCard.id, rating, settings.defaultDirection);
+    setLoopState((prev) => applyLoopRating(prev, currentCard.id, rating));
   };
+
+  // Keyboard shortcuts (Space/Enter to reveal, 1-5 to rate)
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) {
+        return;
+      }
+      if (!currentCard || loopState.phase === 'done') return;
+
+      if (!isRevealed && (e.code === 'Space' || e.key === 'Enter')) {
+        e.preventDefault();
+        handleRevealAnswer();
+      } else if (isRevealed && ['1', '2', '3', '4', '5'].includes(e.key)) {
+        e.preventDefault();
+        handleRateAndAdvance(e.key as RatingKey);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentCard, isRevealed, loopState.phase, settings.defaultDirection]);
 
   const renderCardIllustration = (card: Flashcard) => {
     switch (card.illustration) {
@@ -163,43 +314,42 @@ export const StudySection: React.FC<StudySectionProps> = ({
       case 'vocab':
         return {
           label: 'Vokabel',
-          fullTitle: 'Vokabel-Karte (Wort & Bedeutung)',
           badgeBg: 'bg-[#FAD7DC] border-[#F0BFC7] text-[#49352D]',
           icon: BookOpen,
         };
       case 'writing':
         return {
           label: 'Schreibübung',
-          fullTitle: 'Schreibübung (Schreiben)',
           badgeBg: 'bg-[#E3ECD6] border-[#C5D4B3] text-[#49352D]',
           icon: Pencil,
         };
       case 'listening':
         return {
           label: 'Hörübung',
-          fullTitle: 'Hörübung (Verstehen)',
           badgeBg: 'bg-[#F6DCE8] border-[#E8C2D5] text-[#49352D]',
           icon: Headphones,
         };
     }
   };
 
-  // Count cards per mode in the current deck
   const modeCounts = useMemo(() => {
-    const deckCards = cards.filter((c) => c.deckId === currentDeck.id);
+    const writingCount = deckCards.filter(
+      (c) => c.mode === 'writing' || c.mode === 'vocab'
+    ).length;
     return {
       all: deckCards.length,
       vocab: deckCards.filter((c) => c.mode === 'vocab').length,
-      writing: deckCards.filter((c) => c.mode === 'writing').length,
+      writing: writingCount,
       listening: deckCards.filter((c) => c.mode === 'listening').length,
     };
-  }, [cards, currentDeck.id]);
+  }, [deckCards]);
+
+  const progressPct = computeDeckLoopProgressPct(loopState);
 
   return (
     <div className="w-full max-w-4xl mx-auto">
-      {/* Main Study Container matching Reference 3 Top-Right Card */}
       <div className="bg-[#FDF7F0] border border-[#E6D7C8] rounded-3xl p-4 sm:p-7 shadow-xs">
-        {/* Top Study Header: Back arrow, Deck Selector, Shuffle, Mode Chooser & Settings */}
+        {/* Top Study Header */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <button
@@ -215,12 +365,9 @@ export const StudySection: React.FC<StudySectionProps> = ({
               <span className="text-[#8C7568] font-bold">·</span>
               <select
                 value={currentDeck.id}
-                onChange={(e) => {
-                  onSelectDeck(e.target.value);
-                  setCurrentIndex(0);
-                }}
+                onChange={(e) => onSelectDeck(e.target.value)}
                 aria-label="Deck auswählen"
-                className="bg-[#FFFDF9] border border-[#E6D7C8] rounded-xl px-3 py-1.5 text-sm sm:text-base font-bold text-[#49352D] focus:outline-none focus:border-[#E98F9C] cursor-pointer"
+                className="bg-[#FFFDF9] border border-[#E6D7C8] rounded-xl px-3 py-1.5 text-sm sm:text-base font-bold text-[#49352D] focus:outline-none focus:border-[#E98F9C] cursor-pointer max-w-[230px] sm:max-w-none"
               >
                 {decks.map((d) => (
                   <option key={d.id} value={d.id}>
@@ -233,6 +380,18 @@ export const StudySection: React.FC<StudySectionProps> = ({
 
           <div className="flex items-center gap-2">
             <button
+              onClick={() => setSlowAudio((prev) => !prev)}
+              title="Langsamer Modus (0.8×)"
+              className={`px-3 py-2 rounded-xl border text-xs font-bold transition-colors cursor-pointer whitespace-nowrap ${
+                slowAudio
+                  ? 'bg-[#E3ECD6] border-[#A9B99A] text-[#3F5232]'
+                  : 'bg-[#FFFDF9] border-[#E6D7C8] text-[#6B5344] hover:text-[#49352D]'
+              }`}
+            >
+              {slowAudio ? '0.8× Langsam' : '1.0× Normal'}
+            </button>
+
+            <button
               onClick={() => setShowModePicker((prev) => !prev)}
               className={`px-3 py-2 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
                 showModePicker
@@ -241,7 +400,7 @@ export const StudySection: React.FC<StudySectionProps> = ({
               }`}
             >
               <Layers className="w-4 h-4" />
-              <span>Lernmodus wählen</span>
+              <span className="hidden sm:inline">Modus</span>
             </button>
 
             <button
@@ -268,7 +427,7 @@ export const StudySection: React.FC<StudySectionProps> = ({
           </div>
         </div>
 
-        {/* Three Distinct Learning Modes Selector Bar (matching Reference 2 "Choose a deck" & Reference 3 mode pills) */}
+        {/* Mode Filter Bar */}
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <button
             onClick={() => handleSelectModeFilter('all')}
@@ -318,7 +477,6 @@ export const StudySection: React.FC<StudySectionProps> = ({
           </button>
         </div>
 
-        {/* Expandable Choose-a-Card-Type Overview Cards (from Reference 2 "Choose a deck / Select a card type") */}
         {showModePicker && (
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 bg-[#FFFDF9] border border-[#E6D7C8] rounded-2xl">
             <button
@@ -331,7 +489,7 @@ export const StudySection: React.FC<StudySectionProps> = ({
               <div>
                 <p className="text-sm font-bold text-[#49352D]">Vokabeln</p>
                 <p className="text-xs font-semibold text-[#6B5344] mt-0.5">
-                  Chinesische Wörter & deutsche Bedeutungen lernen.
+                  Schriftzeichen, Pinyin & Bedeutung lernen.
                 </p>
               </div>
             </button>
@@ -346,7 +504,7 @@ export const StudySection: React.FC<StudySectionProps> = ({
               <div>
                 <p className="text-sm font-bold text-[#49352D]">Schreibübung</p>
                 <p className="text-xs font-semibold text-[#6B5344] mt-0.5">
-                  Schriftzeichen aus dem Deutschen abrufen & tippen.
+                  Vereinfachte Zeichen per Tastatur üben.
                 </p>
               </div>
             </button>
@@ -361,92 +519,115 @@ export const StudySection: React.FC<StudySectionProps> = ({
               <div>
                 <p className="text-sm font-bold text-[#49352D]">Hörübung</p>
                 <p className="text-xs font-semibold text-[#6B5344] mt-0.5">
-                  Gesprochene Sätze rein über Audio verstehen.
+                  Ganze Mandarin-Sätze über Audio verstehen.
                 </p>
               </div>
             </button>
           </div>
         )}
 
-        {/* Segmented Progress Bar + Counter (12 / 24) matching Reference 3 */}
-        {studyQueue.length > 0 && currentCard && (
-          <>
-            <div className="mt-4 flex items-center gap-3">
-              <div className="flex-1 flex items-center gap-1">
-                {studyQueue.slice(0, 16).map((c, idx) => {
-                  const isCompletedOrActive = idx <= safeIndex;
-                  const activeColor =
-                    currentCard.mode === 'writing'
-                      ? 'bg-[#A9B99A]'
-                      : currentCard.mode === 'listening'
-                      ? 'bg-[#D896B5]'
-                      : 'bg-[#E58F9D]';
-                  return (
-                    <div
-                      key={c.id}
-                      className={`h-2 flex-1 rounded-full transition-colors duration-200 ${
-                        isCompletedOrActive ? activeColor : 'bg-[#EADFD3]'
-                      }`}
-                    />
-                  );
-                })}
-              </div>
-              <span className="text-xs sm:text-sm font-bold text-[#6B5344] tabular-nums shrink-0">
-                {safeIndex + 1} / {studyQueue.length}
-              </span>
-            </div>
+        {/* Session Progress Bar (Confidence Loop) */}
+        <div className="mt-4 flex items-center gap-3">
+          <div className="flex-1 h-2.5 rounded-full bg-[#EADFD3] overflow-hidden">
+            <div
+              className="h-full rounded-full bg-[#E58F9D] transition-all duration-300"
+              style={{ width: `${Math.max(4, progressPct)}%` }}
+            />
+          </div>
+          <span className="text-xs font-bold text-[#6B5344] tabular-nums shrink-0">
+            {loopState.phase === 'sweep'
+              ? `Abschluss-Check (${loopState.sweepPassedIds.length}/${loopState.finalCheckTotal})`
+              : `${loopState.clearedIds.length} / ${loopState.orderedCardIds.length} sicher (${progressPct}%)`}
+          </span>
+        </div>
 
-            {/* Active Flashcard Stage with Left / Right Navigation Arrows */}
-            <div className="mt-5 relative flex items-center justify-center gap-2 sm:gap-4">
-              {/* Left Previous Arrow (Desktop & Tablet) */}
+        {/* Done State */}
+        {loopState.phase === 'done' || !currentCard ? (
+          <div className="mt-6 bg-[#FFFDF9] border-2 border-[#C9D6B8] rounded-3xl p-8 text-center">
+            <div className="mx-auto w-14 h-14 rounded-full bg-[#E3ECD6] flex items-center justify-center mb-3">
+              <Sparkles className="w-7 h-7 text-[#557042]" />
+            </div>
+            <h2 className="text-xl font-bold text-[#49352D]">
+              Runde abgeschlossen! 太棒了 ♡
+            </h2>
+            <p className="text-sm font-semibold text-[#6B5344] mt-1">
+              Alle {loopState.orderedCardIds.length} Karten dieses Sets sind gefestigt.
+            </p>
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
               <button
-                onClick={handlePrevCard}
-                aria-label="Vorherige Karte"
+                onClick={() => setSessionSeed((s) => s + 1)}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#E38B98] hover:bg-[#D87A88] text-white font-bold text-sm cursor-pointer"
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span>Neue Wiederholungsrunde</span>
+              </button>
+              <button
+                onClick={onBackHome}
+                className="px-5 py-2.5 rounded-full bg-[#F3E9DC] hover:bg-[#E6D7C8] text-[#49352D] font-bold text-sm cursor-pointer"
+              >
+                Zurück zur Übersicht
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Active Flashcard Stage */}
+            <div className="mt-5 relative flex items-center justify-center gap-2 sm:gap-4">
+              <button
+                onClick={onBackHome}
+                aria-label="Zurück"
                 className="hidden sm:flex w-10 h-10 rounded-full bg-[#FFFDF9] border border-[#E6D7C8] items-center justify-center text-[#6B5344] hover:text-[#49352D] hover:bg-[#F5E9DC] transition-colors shrink-0 cursor-pointer shadow-2xs"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
 
-              {/* CENTRAL FLASHCARD */}
               <div className="w-full max-w-xl">
                 {(() => {
-                  const modeMeta = getModeMeta(currentCard.mode);
+                  const modeMeta = getModeMeta(effectiveMode);
                   const ModeIcon = modeMeta.icon;
-
-                  // Card surface tint based on learning mode & reveal state
                   const cardSurfaceClass =
-                    currentCard.mode === 'writing'
+                    effectiveMode === 'writing'
                       ? 'bg-[#F3F6EC] border-[#C9D6B8]'
-                      : currentCard.mode === 'listening'
+                      : effectiveMode === 'listening'
                       ? 'bg-[#FCF5F9] border-[#E8C9DA]'
                       : isRevealed
                       ? 'bg-[#F4F7EE] border-[#CEDBC0]'
                       : 'bg-[#FFFDF9] border-[#E8D5C8]';
 
+                  const isDivergent =
+                    currentCard.cantoneseBridge === 'non_cognate' ||
+                    currentCard.cantoneseBridge === 'false_friend';
+
                   return (
                     <div
-                      className={`relative overflow-hidden rounded-3xl border-2 p-5 sm:p-8 min-h-[320px] sm:min-h-[350px] flex flex-col justify-between transition-colors duration-200 shadow-xs ${cardSurfaceClass}`}
+                      className={`relative overflow-hidden rounded-3xl border-2 p-5 sm:p-8 min-h-[330px] sm:min-h-[360px] flex flex-col justify-between transition-colors duration-200 shadow-xs ${cardSurfaceClass}`}
                     >
-                      {/* Top-Right Cherry Blossom Branch */}
                       <div className="pointer-events-none absolute -top-1 -right-2 opacity-90">
                         <SakuraBranchCorner className="w-32 h-22 sm:w-36 sm:h-24" />
                       </div>
 
-                      {/* Bottom-Left Small Sakura Flower */}
                       <div className="pointer-events-none absolute bottom-3 left-3 opacity-80">
                         <SmallSakuraFlower className="w-7 h-7" />
                       </div>
 
-                      {/* Card Top Bar: Mode Pill + Flip/Status Icon */}
-                      <div className="relative z-10 flex items-center justify-between gap-2">
-                        <div
-                          className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs sm:text-sm font-bold ${modeMeta.badgeBg}`}
-                        >
-                          <ModeIcon className="w-4 h-4" />
-                          <span>{modeMeta.label}</span>
+                      {/* Card Top Bar */}
+                      <div className="relative z-10 flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs sm:text-sm font-bold ${modeMeta.badgeBg}`}
+                          >
+                            <ModeIcon className="w-4 h-4" />
+                            <span>{modeMeta.label}</span>
+                          </div>
+
+                          {isDivergent && (
+                            <span className="px-2.5 py-1 rounded-full bg-[#FBE7D3] border border-[#E5BE96] text-[11px] font-bold text-[#6B421C]">
+                              Kantonesisch ≠ Mandarin
+                            </span>
+                          )}
                         </div>
 
-                        {currentCard.mode === 'vocab' && (
+                        {effectiveMode === 'vocab' && (
                           <button
                             onClick={onTogglePinyin}
                             className="text-xs font-bold px-2.5 py-1 rounded-lg bg-[#FFF9F1]/90 border border-[#E6D7C8] text-[#6B5344] hover:text-[#49352D] transition-colors cursor-pointer"
@@ -455,20 +636,11 @@ export const StudySection: React.FC<StudySectionProps> = ({
                             Pinyin: {settings.showPinyin ? 'An' : 'Aus'}
                           </button>
                         )}
-
-                        {isRevealed && currentCard.mode !== 'vocab' && (
-                          <span className="w-7 h-7 rounded-full bg-[#A9B99A] text-white flex items-center justify-center shadow-2xs">
-                            <Check className="w-4 h-4 stroke-[2.6]" />
-                          </span>
-                        )}
                       </div>
 
-                      {/* ========================================================
-                          MODE 1: VOCABULARY CARDS (Vokabeln)
-                      ======================================================== */}
-                      {currentCard.mode === 'vocab' && (
-                        <div className="relative z-10 my-auto py-6 flex flex-col items-center justify-center text-center">
-                          {/* Front vs Back depending on learning direction */}
+                      {/* MODE 1: VOCABULARY */}
+                      {effectiveMode === 'vocab' && (
+                        <div className="relative z-10 my-auto py-5 flex flex-col items-center justify-center text-center">
                           {(() => {
                             const isChineseFront = settings.defaultDirection === 'zh-to-de';
                             const showChineseSide =
@@ -481,9 +653,19 @@ export const StudySection: React.FC<StudySectionProps> = ({
                                     {currentCard.hanzi}
                                   </p>
 
+                                  {currentCard.traditional &&
+                                    currentCard.traditional !== currentCard.hanzi && (
+                                      <p className="mt-1 text-xs font-semibold text-[#8C7568]">
+                                        Traditionell:{' '}
+                                        <span className="font-chinese">
+                                          {currentCard.traditional}
+                                        </span>
+                                      </p>
+                                    )}
+
                                   <div className="mt-4 flex items-center justify-center gap-2.5">
                                     <button
-                                      onClick={() => speak(currentCard.hanzi, 'zh-CN')}
+                                      onClick={() => playCurrentMandarin()}
                                       aria-label="Mandarin Aussprache abspielen"
                                       className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
                                         isSpeaking
@@ -491,7 +673,11 @@ export const StudySection: React.FC<StudySectionProps> = ({
                                           : 'bg-[#FAD7DC]/80 text-[#49352D] hover:bg-[#F4B5BE]'
                                       }`}
                                     >
-                                      <Volume2 className="w-5 h-5" />
+                                      {isLoadingAudio ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                      ) : (
+                                        <Volume2 className="w-5 h-5" />
+                                      )}
                                     </button>
 
                                     {settings.showPinyin && (
@@ -502,13 +688,20 @@ export const StudySection: React.FC<StudySectionProps> = ({
                                   </div>
 
                                   {isRevealed && (
-                                    <div className="mt-4 pt-3 border-t border-[#E6D7C8]/80 text-sm font-bold text-[#6B5344]">
-                                      <span>{currentCard.german}</span>
-                                      {currentCard.grammar && (
-                                        <span className="text-[#8C7568]">
-                                          {' '}
-                                          · {currentCard.grammar}
-                                        </span>
+                                    <div className="mt-5 px-5 py-2.5 rounded-2xl bg-[#FFFDF9]/90 border border-[#CEDBC0]">
+                                      <p className="text-lg sm:text-xl font-bold text-[#49352D]">
+                                        {currentCard.german}
+                                      </p>
+                                      {(currentCard.grammar || currentCard.level) && (
+                                        <p className="text-xs font-semibold text-[#8C7568] mt-0.5">
+                                          {currentCard.level}
+                                          {currentCard.grammar ? ` · ${currentCard.grammar}` : ''}
+                                        </p>
+                                      )}
+                                      {currentCard.bridgeNote && (
+                                        <p className="text-xs font-bold text-[#8A5A2B] mt-1.5">
+                                          {currentCard.bridgeNote}
+                                        </p>
                                       )}
                                     </div>
                                   )}
@@ -516,16 +709,15 @@ export const StudySection: React.FC<StudySectionProps> = ({
                               );
                             }
 
-                            // German meaning side (Back for zh->de, Front for de->zh)
                             return (
                               <>
-                                <p className="text-3xl sm:text-4xl font-bold text-[#49352D] leading-snug">
+                                <p className="text-2xl sm:text-3xl font-bold text-[#49352D] leading-snug">
                                   {currentCard.german}
                                 </p>
 
                                 <div className="mt-3 flex items-center justify-center gap-2">
                                   <button
-                                    onClick={() => speak(currentCard.hanzi, 'zh-CN')}
+                                    onClick={() => playCurrentMandarin()}
                                     aria-label="Mandarin Aussprache abspielen"
                                     className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
                                       isSpeaking
@@ -533,29 +725,27 @@ export const StudySection: React.FC<StudySectionProps> = ({
                                         : 'bg-[#E2ECD5] text-[#49352D] hover:bg-[#CEDBC0]'
                                     }`}
                                   >
-                                    <Volume2 className="w-5 h-5" />
+                                    {isLoadingAudio ? (
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                      <Volume2 className="w-5 h-5" />
+                                    )}
                                   </button>
 
-                                  {isRevealed && settings.showPinyin && (
-                                    <span className="text-base font-bold text-[#6B5344]">
-                                      {currentCard.hanzi} ({currentCard.pinyin})
+                                  {isRevealed && (
+                                    <span className="text-lg font-bold text-[#49352D]">
+                                      <span className="font-chinese text-2xl mr-1.5">
+                                        {currentCard.hanzi}
+                                      </span>
+                                      {settings.showPinyin && `(${currentCard.pinyin})`}
                                     </span>
                                   )}
                                 </div>
 
-                                {(currentCard.grammar || currentCard.level) && (
-                                  <div className="mt-4 flex items-center justify-center gap-2 text-xs font-bold text-[#6B5344]">
-                                    {currentCard.grammar && (
-                                      <span className="px-3 py-1 rounded-full bg-[#FAD7DC]/70 border border-[#F0BFC7]">
-                                        {currentCard.grammar}
-                                      </span>
-                                    )}
-                                    {currentCard.level && (
-                                      <span className="px-3 py-1 rounded-full bg-[#FFF9F1] border border-[#E6D7C8]">
-                                        {currentCard.level}
-                                      </span>
-                                    )}
-                                  </div>
+                                {isRevealed && currentCard.bridgeNote && (
+                                  <p className="mt-3 text-xs font-bold text-[#8A5A2B] bg-[#FBE7D3]/70 px-3 py-1.5 rounded-xl">
+                                    {currentCard.bridgeNote}
+                                  </p>
                                 )}
                               </>
                             );
@@ -563,10 +753,8 @@ export const StudySection: React.FC<StudySectionProps> = ({
                         </div>
                       )}
 
-                      {/* ========================================================
-                          MODE 2: WRITING PRACTICE (Schreiben)
-                      ======================================================== */}
-                      {currentCard.mode === 'writing' && (
+                      {/* MODE 2: WRITING PRACTICE */}
+                      {effectiveMode === 'writing' && (
                         <div className="relative z-10 my-auto py-4 flex flex-col items-center justify-center text-center">
                           {!isRevealed ? (
                             <form
@@ -576,13 +764,11 @@ export const StudySection: React.FC<StudySectionProps> = ({
                               <p className="text-2xl sm:text-3xl font-bold text-[#49352D]">
                                 {currentCard.german}
                               </p>
-                              {currentCard.grammar && (
-                                <p className="text-xs font-semibold text-[#8C7568] mt-0.5">
-                                  {currentCard.grammar} · {currentCard.level || 'HSK 1'}
-                                </p>
-                              )}
+                              <p className="text-xs font-semibold text-[#8C7568] mt-1">
+                                {currentCard.grammar || 'Wort'} · {currentCard.level || 'HSK 1'}
+                                {settings.showPinyin ? ` · Pinyin: ${currentCard.pinyin}` : ''}
+                              </p>
 
-                              {/* Standard OS/iPad Keyboard Chinese Text Input Field */}
                               <div className="mt-5 w-full relative">
                                 <input
                                   ref={writingInputRef}
@@ -590,7 +776,7 @@ export const StudySection: React.FC<StudySectionProps> = ({
                                   lang="zh-CN"
                                   value={writingInput}
                                   onChange={(e) => setWritingInput(e.target.value)}
-                                  placeholder="Chinesische Schriftzeichen eingeben..."
+                                  placeholder="Vereinfachte Schriftzeichen eingeben..."
                                   autoComplete="off"
                                   autoCorrect="off"
                                   autoCapitalize="off"
@@ -612,21 +798,10 @@ export const StudySection: React.FC<StudySectionProps> = ({
                                       <X className="w-4 h-4" />
                                     </button>
                                   )}
-                                  <Keyboard
-                                    className="w-4 h-4 text-[#8C7568]"
-                                    aria-hidden="true"
-                                  />
+                                  <Keyboard className="w-4 h-4 text-[#8C7568]" aria-hidden="true" />
                                 </div>
                               </div>
 
-                              {/* iPad & Mobile Native Keyboard Hint Box */}
-                              <p className="mt-2.5 text-[11px] sm:text-xs font-semibold text-[#6B5344] flex items-center gap-1.5">
-                                <span>
-                                  Tipp: Nutze die iPad-/Smartphone-Tastatur für Handschrift-Eingabe
-                                </span>
-                              </p>
-
-                              {/* Sage-green Überprüfen Button matching Reference 1 & 3 */}
                               <button
                                 type="submit"
                                 className="mt-4 inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-[#8FA47D] hover:bg-[#7F946D] text-white font-bold text-sm shadow-xs transition-all cursor-pointer"
@@ -636,22 +811,29 @@ export const StudySection: React.FC<StudySectionProps> = ({
                               </button>
                             </form>
                           ) : (
-                            /* REVEALED BACK OF WRITING CARD */
                             <div className="w-full max-w-md mx-auto flex flex-col items-center">
                               <p className="text-sm font-bold text-[#6B5344]">
                                 {currentCard.german}
                               </p>
-
                               <p className="mt-2 font-chinese text-5xl sm:text-6xl font-bold text-[#49352D] tracking-wide">
                                 {currentCard.hanzi}
                               </p>
+                              {currentCard.traditional &&
+                                currentCard.traditional !== currentCard.hanzi && (
+                                  <p className="mt-1 text-xs font-semibold text-[#8C7568]">
+                                    Traditionell:{' '}
+                                    <span className="font-chinese">
+                                      {currentCard.traditional}
+                                    </span>
+                                  </p>
+                                )}
 
                               <div className="mt-3 flex items-center justify-center gap-2.5">
                                 <span className="text-xl font-bold text-[#6B5344]">
                                   {currentCard.pinyin}
                                 </span>
                                 <button
-                                  onClick={() => speak(currentCard.hanzi, 'zh-CN')}
+                                  onClick={() => playCurrentMandarin()}
                                   aria-label="Mandarin Aussprache abspielen"
                                   className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
                                     isSpeaking
@@ -659,11 +841,14 @@ export const StudySection: React.FC<StudySectionProps> = ({
                                       : 'bg-[#DCE5D0] text-[#49352D] hover:bg-[#C9D6B8]'
                                   }`}
                                 >
-                                  <Volume2 className="w-5 h-5" />
+                                  {isLoadingAudio ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <Volume2 className="w-5 h-5" />
+                                  )}
                                 </button>
                               </div>
 
-                              {/* Answer Comparison Box */}
                               <div className="mt-4 w-full bg-[#FFFDF9] border border-[#C9D6B8] rounded-2xl p-3 text-xs sm:text-sm">
                                 {writingSubmitted && writingInput.trim().length > 0 ? (
                                   writingInput.trim() === currentCard.hanzi.trim() ? (
@@ -704,28 +889,17 @@ export const StudySection: React.FC<StudySectionProps> = ({
                         </div>
                       )}
 
-                      {/* ========================================================
-                          MODE 3: LISTENING PRACTICE (Hören)
-                          CRITICAL: FRONT IS STRICTLY AUDIO ONLY — NO TEXT, NO HANZI, NO PINYIN, NO HINTS
-                      ======================================================== */}
-                      {currentCard.mode === 'listening' && (
+                      {/* MODE 3: LISTENING PRACTICE (Mandarin audio only on front) */}
+                      {effectiveMode === 'listening' && (
                         <div className="relative z-10 my-auto py-6 flex flex-col items-center justify-center text-center">
                           {!isRevealed ? (
-                            /* FRONT — AUDIO ONLY */
-                            <div className="flex flex-col items-center justify-center py-6">
+                            <div className="flex flex-col items-center justify-center py-4">
                               <div className="flex items-center justify-center gap-4 sm:gap-6">
-                                {/* Left Sound-Wave Bars */}
-                                <div
-                                  className="flex items-center gap-1 h-12"
-                                  aria-hidden="true"
-                                >
+                                <div className="flex items-center gap-1 h-12" aria-hidden="true">
                                   {[14, 26, 36, 22, 30, 16].map((h, i) => (
                                     <span
                                       key={`l-${i}`}
-                                      style={{
-                                        height: `${h}px`,
-                                        animationDelay: `${i * 0.1}s`,
-                                      }}
+                                      style={{ height: `${h}px`, animationDelay: `${i * 0.1}s` }}
                                       className={`w-1.5 rounded-full bg-[#DFB4C8] transition-transform ${
                                         isSpeaking ? 'animate-wave-bar' : ''
                                       }`}
@@ -733,29 +907,25 @@ export const StudySection: React.FC<StudySectionProps> = ({
                                   ))}
                                 </div>
 
-                                {/* Large Circular Play Button */}
                                 <button
-                                  onClick={() => speak(currentCard.hanzi, 'zh-CN')}
+                                  onClick={() => playCurrentMandarin()}
                                   aria-label="Mandarin Satz anhören"
                                   className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-[#F4B5BE] hover:bg-[#E98F9C] active:scale-95 text-[#49352D] flex items-center justify-center shadow-sm border-4 border-[#FCE6EA] transition-all cursor-pointer ${
                                     isSpeaking ? 'ring-4 ring-[#F4B5BE]/40 scale-105' : ''
                                   }`}
                                 >
-                                  <Play className="w-9 h-9 sm:w-10 sm:h-10 fill-[#C86D7A] text-[#C86D7A] ml-1" />
+                                  {isLoadingAudio ? (
+                                    <Loader2 className="w-8 h-8 animate-spin text-[#C86D7A]" />
+                                  ) : (
+                                    <Play className="w-9 h-9 sm:w-10 sm:h-10 fill-[#C86D7A] text-[#C86D7A] ml-1" />
+                                  )}
                                 </button>
 
-                                {/* Right Sound-Wave Bars */}
-                                <div
-                                  className="flex items-center gap-1 h-12"
-                                  aria-hidden="true"
-                                >
+                                <div className="flex items-center gap-1 h-12" aria-hidden="true">
                                   {[16, 30, 22, 36, 26, 14].map((h, i) => (
                                     <span
                                       key={`r-${i}`}
-                                      style={{
-                                        height: `${h}px`,
-                                        animationDelay: `${i * 0.12}s`,
-                                      }}
+                                      style={{ height: `${h}px`, animationDelay: `${i * 0.12}s` }}
                                       className={`w-1.5 rounded-full bg-[#DFB4C8] transition-transform ${
                                         isSpeaking ? 'animate-wave-bar' : ''
                                       }`}
@@ -763,9 +933,18 @@ export const StudySection: React.FC<StudySectionProps> = ({
                                   ))}
                                 </div>
                               </div>
+
+                              {currentCard.audioSlowUrl && (
+                                <button
+                                  type="button"
+                                  onClick={() => playCurrentMandarin(true)}
+                                  className="mt-4 px-3.5 py-1.5 rounded-full bg-[#FFFDF9] border border-[#E6D7C8] text-xs font-bold text-[#6B5344] hover:text-[#49352D] cursor-pointer"
+                                >
+                                  Langsam abspielen (0.8×)
+                                </button>
+                              )}
                             </div>
                           ) : (
-                            /* BACK — REVEALED ANSWER (Chinese Sentence + Pinyin + German Translation + Audio) */
                             <div className="w-full max-w-md mx-auto flex flex-col items-center">
                               <p className="font-chinese text-3xl sm:text-4xl font-bold text-[#49352D] leading-snug">
                                 {currentCard.hanzi}
@@ -776,7 +955,7 @@ export const StudySection: React.FC<StudySectionProps> = ({
                                   {currentCard.pinyin}
                                 </span>
                                 <button
-                                  onClick={() => speak(currentCard.hanzi, 'zh-CN')}
+                                  onClick={() => playCurrentMandarin()}
                                   aria-label="Mandarin Satz erneut anhören"
                                   className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer ${
                                     isSpeaking
@@ -788,15 +967,8 @@ export const StudySection: React.FC<StudySectionProps> = ({
                                 </button>
                               </div>
 
-                              {/* German Translation Pill Box matching Reference 3 Hörübung back */}
-                              <div className="mt-5 w-full bg-[#EFE7DC]/90 border border-[#DFD1C1] rounded-2xl px-4 py-3 flex items-center justify-center gap-2.5">
-                                <button
-                                  onClick={() => speak(currentCard.german, 'de-DE')}
-                                  aria-label="Deutsche Übersetzung vorlesen"
-                                  className="w-7 h-7 rounded-full bg-[#FFFDF9] border border-[#E6D7C8] flex items-center justify-center text-[#6B5344] hover:text-[#49352D] shrink-0 cursor-pointer"
-                                >
-                                  <Volume2 className="w-3.5 h-3.5" />
-                                </button>
+                              {/* German meaning box — no German TTS button (Mandarin audio only) */}
+                              <div className="mt-5 w-full bg-[#EFE7DC]/90 border border-[#DFD1C1] rounded-2xl px-4 py-3 text-center">
                                 <span className="text-sm sm:text-base font-bold text-[#49352D]">
                                   {currentCard.german}
                                 </span>
@@ -806,18 +978,16 @@ export const StudySection: React.FC<StudySectionProps> = ({
                         </div>
                       )}
 
-                      {/* Bottom Decorative Corner Mascot / Illustration */}
                       <div className="relative z-10 flex items-end justify-between min-h-[40px]">
                         <div className="flex items-center">
-                          {currentCard.mode === 'writing' && !isRevealed && (
+                          {effectiveMode === 'writing' && !isRevealed && (
                             <div className="-mb-3 -ml-2">
                               <CatWritingNotebook className="w-22 h-18 sm:w-26 sm:h-20" />
                             </div>
                           )}
                         </div>
-
                         <div className="-mb-3 -mr-2">
-                          {currentCard.mode === 'vocab' && renderCardIllustration(currentCard)}
+                          {effectiveMode === 'vocab' && renderCardIllustration(currentCard)}
                         </div>
                       </div>
                     </div>
@@ -825,162 +995,74 @@ export const StudySection: React.FC<StudySectionProps> = ({
                 })()}
               </div>
 
-              {/* Right Next Arrow (Desktop & Tablet) */}
               <button
-                onClick={handleNextCard}
-                aria-label="Nächste Karte"
+                onClick={handleSkipNext}
+                aria-label="Später zeigen"
+                title="Später zeigen"
                 className="hidden sm:flex w-10 h-10 rounded-full bg-[#FFFDF9] border border-[#E6D7C8] items-center justify-center text-[#6B5344] hover:text-[#49352D] hover:bg-[#F5E9DC] transition-colors shrink-0 cursor-pointer shadow-2xs"
               >
                 <ChevronRight className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Bottom Controls Bar: Direction Switcher + Reveal / SRS Review Controls */}
-            <div className="mt-5 flex flex-col sm:flex-row items-center justify-between gap-3.5 max-w-xl mx-auto">
-              {/* Direction Selector (Essential for Vocabulary Practice) */}
-              <div className="flex items-center gap-2 bg-[#FFFDF9] border border-[#E6D7C8] rounded-full p-1.5 shadow-2xs">
-                <span className="pl-2.5 text-xs font-bold text-[#6B5344] hidden xs:inline">
-                  Richtung:
-                </span>
-                <button
-                  onClick={() => onUpdateDirection('zh-to-de')}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                    settings.defaultDirection === 'zh-to-de'
-                      ? 'bg-[#E98F9C] text-white shadow-2xs'
-                      : 'text-[#6B5344] hover:text-[#49352D]'
-                  }`}
-                >
-                  中文 → Deutsch
-                </button>
-                <button
-                  onClick={() => onUpdateDirection('de-to-zh')}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                    settings.defaultDirection === 'de-to-zh'
-                      ? 'bg-[#E98F9C] text-white shadow-2xs'
-                      : 'text-[#6B5344] hover:text-[#49352D]'
-                  }`}
-                >
-                  Deutsch → 中文
-                </button>
-              </div>
-
-              {/* Answer Reveal OR Review Rating Controls (Again / Hard / Good) */}
-              {!isRevealed ? (
-                <div className="flex items-center gap-2 w-full sm:w-auto justify-center">
+            {/* Bottom Controls Bar: Direction Switcher + 5-Point Confidence Rating */}
+            <div className="mt-5 flex flex-col items-center gap-3.5 max-w-xl mx-auto">
+              <div className="w-full flex flex-wrap items-center justify-between gap-2.5">
+                <div className="flex items-center gap-1.5 bg-[#FFFDF9] border border-[#E6D7C8] rounded-full p-1 shadow-2xs">
                   <button
-                    onClick={handlePrevCard}
-                    aria-label="Vorherige Karte"
-                    className="sm:hidden w-11 h-11 rounded-full bg-[#FFFDF9] border border-[#E6D7C8] flex items-center justify-center text-[#6B5344]"
+                    onClick={() => onUpdateDirection('zh-to-de')}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                      settings.defaultDirection === 'zh-to-de'
+                        ? 'bg-[#E98F9C] text-white shadow-2xs'
+                        : 'text-[#6B5344] hover:text-[#49352D]'
+                    }`}
                   >
-                    <ChevronLeft className="w-5 h-5" />
+                    中文 → Deutsch
                   </button>
-
                   <button
-                    onClick={handleRevealAnswer}
-                    className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-[#FAD7DC] hover:bg-[#F4B5BE] border border-[#E98F9C]/40 text-[#49352D] font-bold text-sm shadow-2xs transition-all cursor-pointer whitespace-nowrap"
+                    onClick={() => onUpdateDirection('de-to-zh')}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                      settings.defaultDirection === 'de-to-zh'
+                        ? 'bg-[#E98F9C] text-white shadow-2xs'
+                        : 'text-[#6B5344] hover:text-[#49352D]'
+                    }`}
                   >
-                    <Eye className="w-4 h-4 text-[#C86D7A]" />
-                    <span>Antwort zeigen</span>
-                  </button>
-
-                  <button
-                    onClick={handleNextCard}
-                    aria-label="Nächste Karte"
-                    className="sm:hidden w-11 h-11 rounded-full bg-[#FFFDF9] border border-[#E6D7C8] flex items-center justify-center text-[#6B5344]"
-                  >
-                    <ChevronRight className="w-5 h-5" />
+                    Deutsch → 中文
                   </button>
                 </div>
-              ) : (
-                <div className="flex items-center gap-2.5 w-full sm:w-auto justify-center">
-                  <button
-                    onClick={() => handleRateAndAdvance('again')}
-                    className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full bg-[#FAD7DC] hover:bg-[#F4B5BE] border border-[#E598A4] text-[#49352D] font-bold text-xs sm:text-sm transition-all cursor-pointer"
-                  >
-                    <X className="w-4 h-4 text-[#C86D7A]" />
-                    <span>Again</span>
-                  </button>
 
+                {!isRevealed && (
                   <button
-                    onClick={() => handleRateAndAdvance('hard')}
-                    className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full bg-[#F3E9DC] hover:bg-[#E6D7C8] border border-[#D8C5B4] text-[#49352D] font-bold text-xs sm:text-sm transition-all cursor-pointer"
+                    onClick={handleRevealAnswer}
+                    className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-[#FAD7DC] hover:bg-[#F4B5BE] border border-[#E98F9C]/40 text-[#49352D] font-bold text-sm shadow-2xs transition-all cursor-pointer whitespace-nowrap"
                   >
-                    <RotateCw className="w-3.5 h-3.5 text-[#8C7568]" />
-                    <span>Hard</span>
+                    <Eye className="w-4 h-4 text-[#C86D7A]" />
+                    <span>Antwort zeigen (Leertaste)</span>
                   </button>
+                )}
+              </div>
 
-                  <button
-                    onClick={() => handleRateAndAdvance('good')}
-                    className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-full bg-[#DCE8CE] hover:bg-[#C8D9B5] border border-[#A9B99A] text-[#3F5232] font-bold text-xs sm:text-sm transition-all cursor-pointer"
-                  >
-                    <Check className="w-4 h-4 text-[#557042]" />
-                    <span>Good</span>
-                  </button>
+              {isRevealed && (
+                <div className="w-full grid grid-cols-5 gap-1.5 sm:gap-2">
+                  {CONFIDENCE_BUTTONS.map((btn) => (
+                    <button
+                      key={btn.key}
+                      onClick={() => handleRateAndAdvance(btn.key)}
+                      className={`flex flex-col items-center justify-center py-2 px-1.5 rounded-2xl border font-bold transition-all cursor-pointer ${btn.cls}`}
+                    >
+                      <span className="text-[11px] sm:text-xs leading-tight whitespace-nowrap">
+                        {btn.label}
+                      </span>
+                      <span className="text-[10px] font-semibold opacity-75 hidden sm:inline">
+                        {btn.sub}
+                      </span>
+                    </button>
+                  ))}
                 </div>
               )}
             </div>
           </>
         )}
-      </div>
-
-      {/* Bottom Visual Reference Strip of the 3 Card Types (matches Reference 3 middle strip) */}
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Card Type 1: Vokabel-Karte */}
-        <button
-          onClick={() => handleSelectModeFilter('vocab')}
-          className={`text-left rounded-2xl border p-4 transition-all cursor-pointer ${
-            activeModeFilter === 'vocab'
-              ? 'bg-[#FFFDF9] border-[#E98F9C] ring-2 ring-[#F4B5BE]/40'
-              : 'bg-[#FDF7F0] border-[#E6D7C8] hover:bg-[#FFFDF9]'
-          }`}
-        >
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FAD7DC] border border-[#F0BFC7] text-xs font-bold text-[#49352D]">
-            <BookOpen className="w-3.5 h-3.5 text-[#C86D7A]" />
-            <span>Vokabel-Karte</span>
-            <span className="font-normal text-[#6B5344]">(Wort & Bedeutung)</span>
-          </div>
-          <p className="mt-2.5 text-xs font-semibold text-[#6B5344]">
-            Lerne Schriftzeichen, Pinyin & deutsche Bedeutung in beiden Richtungen.
-          </p>
-        </button>
-
-        {/* Card Type 2: Schreibübung */}
-        <button
-          onClick={() => handleSelectModeFilter('writing')}
-          className={`text-left rounded-2xl border p-4 transition-all cursor-pointer ${
-            activeModeFilter === 'writing'
-              ? 'bg-[#FFFDF9] border-[#A9B99A] ring-2 ring-[#A9B99A]/40'
-              : 'bg-[#FDF7F0] border-[#E6D7C8] hover:bg-[#FFFDF9]'
-          }`}
-        >
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#E3ECD6] border border-[#C5D4B3] text-xs font-bold text-[#49352D]">
-            <Pencil className="w-3.5 h-3.5 text-[#6A7F5B]" />
-            <span>Schreibübung</span>
-            <span className="font-normal text-[#6B5344]">(Schreiben)</span>
-          </div>
-          <p className="mt-2.5 text-xs font-semibold text-[#6B5344]">
-            Schreibe Schriftzeichen per iPad-/Systemtastatur direkt aus dem Deutschen.
-          </p>
-        </button>
-
-        {/* Card Type 3: Hörübung */}
-        <button
-          onClick={() => handleSelectModeFilter('listening')}
-          className={`text-left rounded-2xl border p-4 transition-all cursor-pointer ${
-            activeModeFilter === 'listening'
-              ? 'bg-[#FFFDF9] border-[#D8A7C4] ring-2 ring-[#D8A7C4]/40'
-              : 'bg-[#FDF7F0] border-[#E6D7C8] hover:bg-[#FFFDF9]'
-          }`}
-        >
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#F6DCE8] border border-[#E8C2D5] text-xs font-bold text-[#49352D]">
-            <Headphones className="w-3.5 h-3.5 text-[#A4678E]" />
-            <span>Hörübung</span>
-            <span className="font-normal text-[#6B5344]">(Verstehen)</span>
-          </div>
-          <p className="mt-2.5 text-xs font-semibold text-[#6B5344]">
-            Höre gesprochene Mandarin-Sätze ganz ohne visuelle Text-Hilfe.
-          </p>
-        </button>
       </div>
     </div>
   );
