@@ -11,17 +11,13 @@ import {
 import { CardSrsState, Deck, Flashcard, PlacementResult, StudyStats } from '../types';
 import {
   CatWithBobaAndBao,
-  SakuraBranchCorner,
   CuteCalendarIcon,
   CuteFlameIcon,
   CuteLayersIcon,
   CuteChartIcon,
-  PottedFlowerIllustration,
-  LeavesInVaseIllustration,
-  DangoSkewerIllustration,
-  AppleWithSlice,
-  CatHoldingApple,
+  DeckStickerArtwork,
 } from './KawaiiIllustrations';
+import { AnimatedMascotScene } from './AnimatedMascotScene';
 
 interface HomeDashboardProps {
   decks: Deck[];
@@ -47,22 +43,9 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
   const totalCardsCount = cards.length;
   const featuredDecks = decks.slice(0, 3);
 
-  const renderDeckIllustration = (type: Deck['illustration']) => {
-    switch (type) {
-      case 'flower':
-        return <PottedFlowerIllustration className="w-11 h-13" />;
-      case 'leaves':
-        return <LeavesInVaseIllustration className="w-11 h-13" />;
-      case 'dango':
-        return <DangoSkewerIllustration className="w-11 h-13" />;
-      case 'apple':
-        return <AppleWithSlice className="w-12 h-11" />;
-      case 'cat':
-        return <CatHoldingApple className="w-12 h-11" />;
-      default:
-        return <PottedFlowerIllustration className="w-11 h-13" />;
-    }
-  };
+  const renderDeckIllustration = (type: Deck['illustration']) => (
+    <DeckStickerArtwork illustration={type} className="w-15 h-14" />
+  );
 
   const renderDeckCategoryIcon = (index: number, theme: Deck['theme']) => {
     const iconColor = theme === 'pink' ? 'text-[#C86D7A]' : 'text-[#6A7F5B]';
@@ -75,11 +58,19 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
     <div className="relative w-full max-w-4xl mx-auto">
       {/* Mobile Header Bar */}
       <div className="flex md:hidden items-center justify-between mb-4 pb-2 border-b border-[#E6D7C8]">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
+          <img
+            src="/assets/mascots/lantern-festival.png"
+            alt="Laternenfest Logo"
+            className="w-7 h-7 object-contain"
+          />
           <span className="font-chinese text-xl font-bold text-[#49352D]">中文卡片</span>
-          <span className="text-[#E98F9C] text-lg" aria-hidden="true">
-            ♥
-          </span>
+          <img
+            src="/assets/accents/heart-pink.png"
+            alt=""
+            aria-hidden="true"
+            className="w-4 h-4 object-contain"
+          />
         </div>
         <span className="text-xs font-semibold text-[#8C7568]">
           Little steps, big progress.
@@ -88,16 +79,19 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
 
       {/* Main Dashboard Card Container */}
       <div className="relative overflow-hidden bg-[#FDF7F0] border border-[#E6D7C8] rounded-3xl p-5 sm:p-7 shadow-xs">
-        <div className="pointer-events-none absolute -top-1 -right-2 opacity-95">
-          <SakuraBranchCorner className="w-36 h-24 sm:w-44 sm:h-28" />
-        </div>
+        <img
+          src="/assets/accents/bow-pink.png"
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute top-3 right-4 w-10 h-8 object-contain opacity-90 animate-orbit-sway"
+        />
 
         {/* Today's Learning Hero Split */}
         <div className="relative z-10 grid grid-cols-1 sm:grid-cols-12 gap-5 items-center">
           <div className="sm:col-span-7 flex flex-col justify-center">
             <div className="bg-[#FFFDF9] border border-[#E8DCD0] rounded-2xl p-5 sm:p-6 shadow-2xs">
               <div className="flex items-center gap-4">
-                <CuteCalendarIcon className="w-12 h-12 shrink-0" />
+                <CuteCalendarIcon className="w-14 h-14 shrink-0" />
                 <div>
                   <h1 className="text-sm font-bold text-[#6B5344]">Heute lernen</h1>
                   <p className="text-2xl sm:text-3xl font-bold text-[#49352D] tabular-nums leading-tight mt-0.5">
@@ -138,24 +132,32 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
             </div>
           </div>
 
-          <div className="sm:col-span-5 flex justify-center sm:justify-end items-end pt-1 sm:pt-4">
-            <CatWithBobaAndBao className="w-44 h-34 sm:w-52 sm:h-40 animate-float-gentle" />
+          <div className="sm:col-span-5 flex justify-center sm:justify-end items-end pt-2 sm:pt-4">
+            <CatWithBobaAndBao className="w-48 h-38 sm:w-56 sm:h-44" />
           </div>
         </div>
 
-        {/* Cantonese -> Mandarin Calibration Banner */}
+        {/* Cantonese -> Mandarin Calibration Banner with Keroppi Globe Traveler */}
         <div className="mt-5 bg-[#FFFDF9] border border-[#E6D7C8] rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-xs sm:text-sm font-bold text-[#49352D]">
-              {placement.completed
-                ? `Kalibriert für Kantonesisch → Mandarin · Lesen HSK ${placement.readingLevel} (${placement.readingAccuracy}%) · Hören HSK ${placement.listeningLevel} (${placement.listeningAccuracy}%)`
-                : 'Sprichst du schon Kantonesisch? Starte den 2-Minuten-Einstufungstest.'}
-            </p>
-            <p className="text-xs font-semibold text-[#8C7568] mt-0.5">
-              {placement.completed
-                ? 'Vertraute Kognate werden beschleunigt — echte Mandarin-Unterschiede bleiben im Fokus.'
-                : 'Wir überspringen vertraute Wörter und testen Lesen & Mandarin-Hören getrennt.'}
-            </p>
+          <div className="flex items-center gap-3.5 min-w-0">
+            <AnimatedMascotScene
+              mascot="globeTraveler"
+              className="w-16 h-20 shrink-0"
+              accents={['paperPlane', 'compassMini']}
+              idleMotion="breathe"
+            />
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm font-bold text-[#49352D]">
+                {placement.completed
+                  ? `Kalibriert für Kantonesisch → Mandarin · Lesen HSK ${placement.readingLevel} (${placement.readingAccuracy}%) · Hören HSK ${placement.listeningLevel} (${placement.listeningAccuracy}%)`
+                  : 'Sprichst du schon Kantonesisch? Starte den 2-Minuten-Einstufungstest.'}
+              </p>
+              <p className="text-xs font-semibold text-[#8C7568] mt-0.5">
+                {placement.completed
+                  ? 'Vertraute Kognate werden beschleunigt — echte Mandarin-Unterschiede bleiben im Fokus.'
+                  : 'Wir überspringen vertraute Wörter und testen Lesen & Mandarin-Hören getrennt.'}
+              </p>
+            </div>
           </div>
           <button
             onClick={onOpenPlacement}

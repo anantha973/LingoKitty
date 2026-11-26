@@ -19,12 +19,10 @@ import {
   StudyMode,
 } from '../types';
 import {
-  PottedFlowerIllustration,
-  LeavesInVaseIllustration,
-  DangoSkewerIllustration,
-  AppleWithSlice,
-  CatHoldingApple,
+  DeckStickerArtwork,
 } from './KawaiiIllustrations';
+import { AnimatedMascotScene } from './AnimatedMascotScene';
+import { CUSTOM_DECK_STICKER_CHOICES } from '../data/mascotRegistry';
 
 interface DecksSectionProps {
   decks: Deck[];
@@ -90,33 +88,23 @@ export const DecksSection: React.FC<DecksSectionProps> = ({
     setShowAddCardModal(null);
   };
 
-  const renderIllustration = (type: DeckIllustrationType) => {
-    switch (type) {
-      case 'flower':
-        return <PottedFlowerIllustration className="w-12 h-14" />;
-      case 'leaves':
-        return <LeavesInVaseIllustration className="w-12 h-14" />;
-      case 'dango':
-        return <DangoSkewerIllustration className="w-12 h-14" />;
-      case 'apple':
-        return <AppleWithSlice className="w-14 h-12" />;
-      case 'cat':
-        return <CatHoldingApple className="w-14 h-12" />;
-      default:
-        return <PottedFlowerIllustration className="w-12 h-14" />;
-    }
-  };
+  const renderIllustration = (type: DeckIllustrationType) => (
+    <DeckStickerArtwork illustration={type} className="w-15 h-15" />
+  );
 
   return (
     <div className="w-full max-w-4xl mx-auto">
       {/* Main Decks Container */}
       <div className="bg-[#FDF7F0] border border-[#E6D7C8] rounded-3xl p-5 sm:p-7 shadow-xs">
-        {/* Top Bar matching Reference 3 Bottom-Left "Decks" + "+ Neue Deck" pill */}
+        {/* Top Bar with Hello Kitty Dreamer companion */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-[#FAD7DC]/80 border border-[#F0BFC7] flex items-center justify-center">
-              <Layers className="w-5 h-5 text-[#49352D]" />
-            </div>
+          <div className="flex items-center gap-3">
+            <AnimatedMascotScene
+              mascot="dreamerKitty"
+              className="w-14 h-14 shrink-0"
+              accents={['heartPink', 'starGold']}
+              idleMotion="float"
+            />
             <div>
               <h1 className="text-xl sm:text-2xl font-bold text-[#49352D]">Decks</h1>
               <p className="text-xs font-semibold text-[#8C7568]">
@@ -340,40 +328,55 @@ export const DecksSection: React.FC<DecksSectionProps> = ({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-[#6B5344] mb-1">
-                    Farbthema
-                  </label>
-                  <select
-                    value={deckTheme}
-                    onChange={(e) => setDeckTheme(e.target.value as DeckTheme)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#E6D7C8] text-sm font-bold text-[#49352D]"
-                  >
-                    <option value="pink">Baby Pink</option>
-                    <option value="sage">Salbeigrün</option>
-                    <option value="cream">Creme Beige</option>
-                    <option value="lavender">Lavendel Rosa</option>
-                  </select>
-                </div>
+              <div>
+                <label className="block text-xs font-bold text-[#6B5344] mb-1">
+                  Farbthema
+                </label>
+                <select
+                  value={deckTheme}
+                  onChange={(e) => setDeckTheme(e.target.value as DeckTheme)}
+                  className="w-full px-3 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#E6D7C8] text-sm font-bold text-[#49352D]"
+                >
+                  <option value="pink">Baby Pink</option>
+                  <option value="sage">Salbeigrün</option>
+                  <option value="cream">Creme Beige</option>
+                  <option value="lavender">Lavendel Rosa</option>
+                </select>
+              </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-[#6B5344] mb-1">
-                    Illustration
-                  </label>
-                  <select
-                    value={deckIllustration}
-                    onChange={(e) =>
-                      setDeckIllustration(e.target.value as DeckIllustrationType)
-                    }
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#E6D7C8] text-sm font-bold text-[#49352D]"
-                  >
-                    <option value="flower">Blumentopf</option>
-                    <option value="leaves">Blätter-Vase</option>
-                    <option value="dango">Dango-Spieß</option>
-                    <option value="apple">Roter Apfel</option>
-                    <option value="cat">Kätzchen</option>
-                  </select>
+              <div>
+                <label className="block text-xs font-bold text-[#6B5344] mb-1.5">
+                  Sticker-Maskottchen wählen
+                </label>
+                <div className="grid grid-cols-4 gap-2">
+                  {CUSTOM_DECK_STICKER_CHOICES.map((choice) => {
+                    const selected = deckIllustration === choice.id;
+                    return (
+                      <button
+                        key={choice.id}
+                        type="button"
+                        onClick={() =>
+                          setDeckIllustration(choice.id as DeckIllustrationType)
+                        }
+                        aria-label={choice.label}
+                        className={`flex flex-col items-center justify-center p-2 rounded-2xl border transition-all cursor-pointer ${
+                          selected
+                            ? 'bg-[#FAD7DC]/70 border-[#E38B98] ring-2 ring-[#E38B98]/40'
+                            : 'bg-[#FFFDF9] border-[#E6D7C8] hover:bg-[#F5E9DC]/60'
+                        }`}
+                      >
+                        <AnimatedMascotScene
+                          mascot={choice.mascotKey}
+                          className="w-11 h-11"
+                          showAccents={false}
+                          idleMotion="none"
+                        />
+                        <span className="text-[10px] font-bold text-[#49352D] mt-1 truncate max-w-full">
+                          {choice.label}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 

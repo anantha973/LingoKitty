@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { PlacementQuestion, PlacementResult } from '../types';
 import { useMandarinSpeech } from '../hooks/useMandarinSpeech';
+import { AnimatedMascotScene } from './AnimatedMascotScene';
 
 interface PlacementQuizModalProps {
   questions: PlacementQuestion[];
@@ -199,8 +200,25 @@ export const PlacementQuizModal: React.FC<PlacementQuizModalProps> = ({
               />
             </div>
 
-            {/* Prompt Box */}
-            <div className="bg-[#FFFDF9] border border-[#E6D7C8] rounded-2xl p-6 text-center mb-4">
+            {/* Prompt Box with Keroppi Explorer / Singing in the Rain */}
+            <div className="relative bg-[#FFFDF9] border border-[#E6D7C8] rounded-2xl p-6 text-center mb-4">
+              <div className="flex justify-center mb-2">
+                {current.skill === 'reading' ? (
+                  <AnimatedMascotScene
+                    mascot="littleExplorer"
+                    className="w-18 h-16"
+                    accents={['leafGreen', 'compassMini']}
+                    idleMotion="breathe"
+                  />
+                ) : (
+                  <AnimatedMascotScene
+                    mascot="singingRain"
+                    className="w-18 h-16"
+                    isAudioPlaying={isSpeaking}
+                    idleMotion="float"
+                  />
+                )}
+              </div>
               {current.skill === 'reading' ? (
                 <>
                   <p className="font-chinese text-4xl sm:text-5xl font-bold text-[#49352D]">
@@ -296,6 +314,14 @@ export const PlacementQuizModal: React.FC<PlacementQuizModalProps> = ({
         ) : finishedResult ? (
           <div className="space-y-4">
             <div className="bg-[#FFFDF9] border border-[#E6D7C8] rounded-2xl p-5 text-center">
+              <div className="flex justify-center mb-2">
+                <AnimatedMascotScene
+                  mascot="winnersCup"
+                  className="w-28 h-24"
+                  accents={['starGold', 'sparkleFour', 'heartPink']}
+                  idleMotion="float"
+                />
+              </div>
               <p className="text-xs font-bold text-[#8C7568] uppercase tracking-wide">
                 Dein Ergebnis
               </p>

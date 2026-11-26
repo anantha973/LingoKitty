@@ -14,7 +14,19 @@ export type CantoneseBridgeKind =
   | 'simplified_diff';
 
 export type DeckTheme = 'pink' | 'sage' | 'cream' | 'lavender';
-export type DeckIllustrationType = 'flower' | 'leaves' | 'dango' | 'apple' | 'tea' | 'cat';
+export type DeckIllustrationType =
+  | 'flower'
+  | 'leaves'
+  | 'dango'
+  | 'apple'
+  | 'tea'
+  | 'cat'
+  | 'gardener'
+  | 'baker'
+  | 'flyer'
+  | 'bubbles'
+  | 'baozi'
+  | 'lantern';
 
 export interface SentenceToken {
   word: string;

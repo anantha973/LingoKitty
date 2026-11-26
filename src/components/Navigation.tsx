@@ -19,23 +19,31 @@ const NAV_ITEMS: { id: AppSection; label: string; icon: React.FC<{ className?: s
 export const DesktopSidebar: React.FC<NavigationProps> = ({ activeSection, onNavigate }) => {
   return (
     <aside className="hidden md:flex flex-col w-60 shrink-0 bg-[#FFF9F1]/80 border-r border-[#E6D7C8] px-5 pt-7 pb-6 select-none">
-      {/* Top App Title & Mascot Lockup matching Reference 3 */}
+      {/* Top App Title & Mascot Lockup */}
       <div className="flex flex-col items-center text-center mb-3">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
+          <img
+            src="/assets/mascots/lantern-festival.png"
+            alt="Laternenfest Logo"
+            className="w-8 h-8 object-contain"
+          />
           <span className="font-chinese text-2xl font-bold tracking-wide text-[#49352D]">
             中文卡片
           </span>
-          <span className="text-[#E98F9C] text-xl leading-none" aria-hidden="true">
-            ♥
-          </span>
+          <img
+            src="/assets/accents/heart-pink.png"
+            alt=""
+            aria-hidden="true"
+            className="w-4 h-4 object-contain"
+          />
         </div>
         <span className="text-xs font-semibold text-[#8C7568] mt-0.5">
           Chinesisch Lernen
         </span>
 
-        {/* Cute Cat Mascot Peeking Over the Home Pill */}
-        <div className="mt-3 -mb-2.5 z-10">
-          <CatMascotHeader className="w-32 h-22" />
+        {/* Hello Kitty & Keroppi Celebrate Duo peeking over Home */}
+        <div className="mt-3 -mb-2 z-10">
+          <CatMascotHeader className="w-36 h-26" />
         </div>
       </div>
 
@@ -67,7 +75,19 @@ export const DesktopSidebar: React.FC<NavigationProps> = ({ activeSection, onNav
 
       {/* Subtle Cosy Motto Footer */}
       <div className="mt-auto pt-6 text-center">
-        <div className="bg-[#F8F1E7] border border-[#E6D7C8] rounded-2xl p-3.5">
+        <div className="relative bg-[#F8F1E7] border border-[#E6D7C8] rounded-2xl p-3.5">
+          <img
+            src="/assets/accents/baozi-mini.png"
+            alt=""
+            aria-hidden="true"
+            className="w-6 h-5 object-contain absolute -top-2.5 left-3 animate-orbit-sway"
+          />
+          <img
+            src="/assets/accents/leaf-green.png"
+            alt=""
+            aria-hidden="true"
+            className="w-5 h-5 object-contain absolute -top-2 right-3 animate-orbit-twinkle"
+          />
           <p className="font-chinese text-sm font-bold text-[#6B5344]">一天一点点</p>
           <p className="text-[11px] font-semibold text-[#8C7568] mt-0.5">
             Little steps, big progress.

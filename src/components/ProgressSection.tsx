@@ -5,8 +5,8 @@ import {
   CuteFlameIcon,
   CuteLayersIcon,
   CuteChartIcon,
-  CatHoldingApple,
 } from './KawaiiIllustrations';
+import { AnimatedMascotScene } from './AnimatedMascotScene';
 
 interface ProgressSectionProps {
   decks: Deck[];
@@ -25,7 +25,9 @@ export const ProgressSection: React.FC<ProgressSectionProps> = ({
   const learnedCards = cards.filter((c) => c.learned).length;
 
   const vocabCards = cards.filter((c) => c.mode === 'vocab');
-  const writingCards = cards.filter((c) => c.mode === 'writing');
+  const writingCards = cards.filter(
+    (c) => c.mode === 'writing' || c.mode === 'vocab'
+  );
   const listeningCards = cards.filter((c) => c.mode === 'listening');
 
   // SVG Donut chart calculations for 82% Richtig
@@ -341,17 +343,30 @@ export const ProgressSection: React.FC<ProgressSectionProps> = ({
               </div>
             </div>
 
-            {/* Motivational Mascot Banner matching Reference 2 "加油!" */}
+            {/* Motivational Milestone Banner: Keroppi Gardener + Lantern Festival */}
             <div className="mt-5 pt-3 border-t border-[#EFE4D8] flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="font-chinese text-base font-bold text-[#49352D]">
                   加油！一天一点点 ♡
                 </p>
                 <p className="text-xs font-semibold text-[#8C7568] leading-snug">
-                  Du machst jeden Tag tolle Fortschritte!
+                  Wachse jeden Tag ein Stück weiter!
                 </p>
               </div>
-              <CatHoldingApple className="w-20 h-16 shrink-0" />
+              <div className="flex items-center gap-2 shrink-0">
+                <AnimatedMascotScene
+                  mascot="gardenerKeroppi"
+                  className="w-16 h-16"
+                  accents={['leafGreen', 'sparkleFour']}
+                  idleMotion="breathe"
+                />
+                <AnimatedMascotScene
+                  mascot="lanternFestival"
+                  className="w-16 h-16"
+                  accents={['starGold']}
+                  idleMotion="float"
+                />
+              </div>
             </div>
           </div>
         </div>

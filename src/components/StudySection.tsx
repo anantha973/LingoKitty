@@ -39,14 +39,10 @@ import {
   DeckLoopState,
 } from '../utils/confidenceLoopEngine';
 import {
-  CatHoldingApple,
-  CatWritingNotebook,
   SakuraBranchCorner,
   SmallSakuraFlower,
-  AppleWithSlice,
-  PottedFlowerIllustration,
-  DangoSkewerIllustration,
 } from './KawaiiIllustrations';
+import { AnimatedMascotScene } from './AnimatedMascotScene';
 
 interface StudySectionProps {
   decks: Deck[];
@@ -297,16 +293,19 @@ export const StudySection: React.FC<StudySectionProps> = ({
   }, [currentCard, isRevealed, loopState.phase, settings.defaultDirection]);
 
   const renderCardIllustration = (card: Flashcard) => {
-    switch (card.illustration) {
-      case 'apple':
-        return <AppleWithSlice className="w-20 h-16 sm:w-24 sm:h-20" />;
-      case 'flower':
-        return <PottedFlowerIllustration className="w-16 h-18" />;
-      case 'dango':
-        return <DangoSkewerIllustration className="w-16 h-18" />;
-      default:
-        return <CatHoldingApple className="w-24 h-20 sm:w-28 sm:h-24" />;
-    }
+    const mascot =
+      card.cantoneseBridge === 'non_cognate' || card.cantoneseBridge === 'false_friend'
+        ? 'sweetheartKitty'
+        : 'readerKitty';
+    return (
+      <AnimatedMascotScene
+        mascot={mascot}
+        className="w-24 h-22 sm:w-28 sm:h-24"
+        showAccents={isRevealed}
+        celebrateTrigger={isRevealed ? `${card.id}-rev` : undefined}
+        idleMotion="breathe"
+      />
+    );
   };
 
   const getModeMeta = (mode: StudyMode) => {
@@ -544,8 +543,14 @@ export const StudySection: React.FC<StudySectionProps> = ({
         {/* Done State */}
         {loopState.phase === 'done' || !currentCard ? (
           <div className="mt-6 bg-[#FFFDF9] border-2 border-[#C9D6B8] rounded-3xl p-8 text-center">
-            <div className="mx-auto w-14 h-14 rounded-full bg-[#E3ECD6] flex items-center justify-center mb-3">
-              <Sparkles className="w-7 h-7 text-[#557042]" />
+            <div className="mx-auto flex justify-center mb-3">
+              <AnimatedMascotScene
+                mascot="graduationDuo"
+                className="w-40 h-32"
+                accents={['starGold', 'sparkleFour', 'heartPink']}
+                orbit="twinkle"
+                idleMotion="float"
+              />
             </div>
             <h2 className="text-xl font-bold text-[#49352D]">
               Runde abgeschlossen! 太棒了 ♡
@@ -602,12 +607,12 @@ export const StudySection: React.FC<StudySectionProps> = ({
                     <div
                       className={`relative overflow-hidden rounded-3xl border-2 p-5 sm:p-8 min-h-[330px] sm:min-h-[360px] flex flex-col justify-between transition-colors duration-200 shadow-xs ${cardSurfaceClass}`}
                     >
-                      <div className="pointer-events-none absolute -top-1 -right-2 opacity-90">
-                        <SakuraBranchCorner className="w-32 h-22 sm:w-36 sm:h-24" />
+                      <div className="pointer-events-none absolute top-2 right-2.5 opacity-90">
+                        <SakuraBranchCorner className="w-8 h-6" />
                       </div>
 
-                      <div className="pointer-events-none absolute bottom-3 left-3 opacity-80">
-                        <SmallSakuraFlower className="w-7 h-7" />
+                      <div className="pointer-events-none absolute bottom-3 left-3 opacity-85">
+                        <SmallSakuraFlower className="w-6 h-6" />
                       </div>
 
                       {/* Card Top Bar */}
@@ -630,7 +635,7 @@ export const StudySection: React.FC<StudySectionProps> = ({
                         {effectiveMode === 'vocab' && (
                           <button
                             onClick={onTogglePinyin}
-                            className="text-xs font-bold px-2.5 py-1 rounded-lg bg-[#FFF9F1]/90 border border-[#E6D7C8] text-[#6B5344] hover:text-[#49352D] transition-colors cursor-pointer"
+                            className="mr-7 text-xs font-bold px-2.5 py-1 rounded-lg bg-[#FFF9F1]/90 border border-[#E6D7C8] text-[#6B5344] hover:text-[#49352D] transition-colors cursor-pointer"
                             title="Pinyin ein-/ausblenden"
                           >
                             Pinyin: {settings.showPinyin ? 'An' : 'Aus'}
@@ -978,15 +983,31 @@ export const StudySection: React.FC<StudySectionProps> = ({
                         </div>
                       )}
 
-                      <div className="relative z-10 flex items-end justify-between min-h-[40px]">
+                      <div className="relative z-10 flex items-end justify-between min-h-[44px]">
                         <div className="flex items-center">
-                          {effectiveMode === 'writing' && !isRevealed && (
-                            <div className="-mb-3 -ml-2">
-                              <CatWritingNotebook className="w-22 h-18 sm:w-26 sm:h-20" />
+                          {effectiveMode === 'writing' && (
+                            <div className="-mb-2 -ml-1">
+                              <AnimatedMascotScene
+                                mascot={isRevealed ? 'craftyCreator' : 'artistKitty'}
+                                className="w-22 h-18 sm:w-26 sm:h-20"
+                                showAccents={isRevealed}
+                                celebrateTrigger={isRevealed ? `${currentCard.id}-write` : undefined}
+                                idleMotion="breathe"
+                              />
+                            </div>
+                          )}
+                          {effectiveMode === 'listening' && (
+                            <div className="-mb-2 -ml-1">
+                              <AnimatedMascotScene
+                                mascot={slowAudio ? 'singingRain' : 'musicMakers'}
+                                className="w-24 h-20 sm:w-28 sm:h-22"
+                                isAudioPlaying={isSpeaking}
+                                idleMotion="float"
+                              />
                             </div>
                           )}
                         </div>
-                        <div className="-mb-3 -mr-2">
+                        <div className="-mb-2 -mr-1">
                           {effectiveMode === 'vocab' && renderCardIllustration(currentCard)}
                         </div>
                       </div>

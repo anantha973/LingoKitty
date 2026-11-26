@@ -2,6 +2,7 @@ import React from 'react';
 import { Settings as SettingsIcon, Check } from 'lucide-react';
 import { StudyDirection, StudyMode, UserSettings } from '../types';
 import { CatSleeping } from './KawaiiIllustrations';
+import { AnimatedMascotScene } from './AnimatedMascotScene';
 
 interface SettingsSectionProps {
   settings: UserSettings;
@@ -219,8 +220,14 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({
             </button>
           </div>
 
-          <div className="-mb-3">
-            <CatSleeping className="w-36 h-26" />
+          <div className="-mb-2 flex items-end gap-3">
+            <AnimatedMascotScene
+              mascot="nightPondDreams"
+              className="w-24 h-22"
+              accents={['starGold']}
+              idleMotion="float"
+            />
+            <CatSleeping className="w-36 h-28" />
           </div>
         </div>
       </div>
