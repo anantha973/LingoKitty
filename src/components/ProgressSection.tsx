@@ -1,12 +1,17 @@
 import React from 'react';
-import { BarChart2, BookOpen, Check, X, Pencil, Headphones } from 'lucide-react';
-import { Deck, Flashcard, StudyStats } from '../types';
 import {
-  CuteFlameIcon,
-  CuteLayersIcon,
-  CuteChartIcon,
-  CatHoldingApple,
-} from './KawaiiIllustrations';
+  BarChart2,
+  BookOpen,
+  Check,
+  X,
+  Pencil,
+  Headphones,
+  Flame,
+  Layers,
+  Target,
+} from 'lucide-react';
+import { Deck, Flashcard, StudyStats } from '../types';
+import { CatHoldingApple } from './KawaiiIllustrations';
 
 interface ProgressSectionProps {
   decks: Deck[];
@@ -28,11 +33,19 @@ export const ProgressSection: React.FC<ProgressSectionProps> = ({
   const writingCards = cards.filter((c) => c.mode === 'writing');
   const listeningCards = cards.filter((c) => c.mode === 'listening');
 
-  // SVG Donut chart calculations for 82% Richtig
-  const radius = 50;
+  // Dynamic accuracy calculated from actual local study data
+  const calculatedAccuracy =
+    stats.todayLearned > 0
+      ? Math.round((stats.todayCorrect / stats.todayLearned) * 100)
+      : totalCards > 0
+      ? Math.round((learnedCards / totalCards) * 100)
+      : 0;
+
+  // SVG Donut chart calculations
+  const radius = 48;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset =
-    circumference - (stats.weeklyAccuracy / 100) * circumference;
+    circumference - (calculatedAccuracy / 100) * circumference;
 
   const getCellColor = (intensity: number) => {
     switch (intensity) {
@@ -43,79 +56,85 @@ export const ProgressSection: React.FC<ProgressSectionProps> = ({
       case 1:
         return 'bg-[#DCE5D0] border-[#CCD5C0]';
       default:
-        return 'bg-[#EFE7DC] border-[#E2D6C8]';
+        return 'bg-[#F8F1E7] border-[#E9D8C8]';
     }
   };
 
   return (
     <div className="w-full max-w-4xl mx-auto">
-      {/* Main Lernfortschritt Box matching Reference 3 Bottom-Center */}
-      <div className="bg-[#FDF7F0] border border-[#E6D7C8] rounded-3xl p-4 sm:p-6 lg:p-7 shadow-xs">
-        <div className="flex items-center gap-3 mb-5 sm:mb-6">
-          <div className="w-10 h-10 rounded-2xl bg-[#E3ECD6] border border-[#C5D4B3] flex items-center justify-center shrink-0">
+      {/* Main Fortschritt Container */}
+      <div className="bg-[#FFF9F3] border border-[#E9D8C8] rounded-3xl p-4 sm:p-6 shadow-2xs space-y-5">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-[#E8EEDD] border border-[#A9B99A] flex items-center justify-center shrink-0">
             <BarChart2 className="w-5 h-5 text-[#49352D]" />
           </div>
           <div className="min-w-0">
             <h1 className="text-xl sm:text-2xl font-bold text-[#49352D] leading-tight">
-              Lernfortschritt
+              Fortschritt
             </h1>
             <p className="text-xs font-semibold text-[#8C7568] mt-0.5 leading-snug">
-              Deine Lernaktivität, Genauigkeit und Fortschritte nach Kategorie
+              Deine aktuelle Lernserie, Genauigkeit und gelernte Karten
             </p>
           </div>
         </div>
 
-        {/* Top Summary Metric Row — stacked & centered on mobile/tablet, horizontal on lg+ */}
-        <div className="grid grid-cols-3 gap-2 sm:gap-3.5 lg:gap-4 mb-5 sm:mb-6 items-stretch">
-          <div className="bg-[#FFFDF9] border border-[#E6D7C8] rounded-2xl px-2 py-3 sm:p-4 flex flex-col lg:flex-row items-center justify-start lg:justify-start text-center lg:text-left gap-1.5 sm:gap-2 lg:gap-3.5 min-w-0">
-            <CuteFlameIcon className="w-8 h-8 sm:w-9 sm:h-9 lg:w-10 lg:h-10 shrink-0" />
-            <div className="flex flex-col items-center lg:items-start min-w-0 w-full">
+        {/* 1. Three Compact Statistics: Lernserie, Karten gelernt, Genauigkeit */}
+        <div className="grid grid-cols-3 gap-2.5 sm:gap-3.5 items-stretch">
+          <div className="bg-[#FFFDF9] border border-[#E9D8C8] rounded-2xl p-3 sm:p-4 flex flex-col sm:flex-row items-center text-center sm:text-left gap-2 sm:gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-[#F4B5BE]/35 border border-[#E98F9C]/35 flex items-center justify-center shrink-0">
+              <Flame className="w-4 h-4 text-[#C86D7A]" />
+            </div>
+            <div className="min-w-0">
               <p className="text-base sm:text-xl font-bold text-[#49352D] tabular-nums leading-tight whitespace-nowrap">
-                {stats.streakDays}
+                {stats.streakDays} {stats.streakDays === 1 ? 'Tag' : 'Tage'}
               </p>
-              <p className="text-[11px] sm:text-xs font-semibold text-[#8C7568] leading-snug mt-0.5 text-balance">
-                Tage in Folge
+              <p className="text-[11px] sm:text-xs font-semibold text-[#8C7568] leading-snug mt-0.5">
+                Lernserie
               </p>
             </div>
           </div>
 
-          <div className="bg-[#FFFDF9] border border-[#E6D7C8] rounded-2xl px-2 py-3 sm:p-4 flex flex-col lg:flex-row items-center justify-start lg:justify-start text-center lg:text-left gap-1.5 sm:gap-2 lg:gap-3.5 min-w-0">
-            <CuteLayersIcon className="w-8 h-8 sm:w-9 sm:h-9 lg:w-10 lg:h-10 shrink-0" />
-            <div className="flex flex-col items-center lg:items-start min-w-0 w-full">
+          <div className="bg-[#FFFDF9] border border-[#E9D8C8] rounded-2xl p-3 sm:p-4 flex flex-col sm:flex-row items-center text-center sm:text-left gap-2 sm:gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-[#E8EEDD] border border-[#A9B99A]/45 flex items-center justify-center shrink-0">
+              <Layers className="w-4 h-4 text-[#5D734C]" />
+            </div>
+            <div className="min-w-0">
               <p className="text-base sm:text-xl font-bold text-[#49352D] tabular-nums leading-tight whitespace-nowrap">
                 {learnedCards} / {totalCards}
               </p>
-              <p className="text-[11px] sm:text-xs font-semibold text-[#8C7568] leading-snug mt-0.5 text-balance">
+              <p className="text-[11px] sm:text-xs font-semibold text-[#8C7568] leading-snug mt-0.5">
                 Karten gelernt
               </p>
             </div>
           </div>
 
-          <div className="bg-[#FFFDF9] border border-[#E6D7C8] rounded-2xl px-2 py-3 sm:p-4 flex flex-col lg:flex-row items-center justify-start lg:justify-start text-center lg:text-left gap-1.5 sm:gap-2 lg:gap-3.5 min-w-0">
-            <CuteChartIcon className="w-8 h-8 sm:w-9 sm:h-9 lg:w-10 lg:h-10 shrink-0" />
-            <div className="flex flex-col items-center lg:items-start min-w-0 w-full">
+          <div className="bg-[#FFFDF9] border border-[#E9D8C8] rounded-2xl p-3 sm:p-4 flex flex-col sm:flex-row items-center text-center sm:text-left gap-2 sm:gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-[#E8D9EB]/70 border border-[#C9B3CE] flex items-center justify-center shrink-0">
+              <Target className="w-4 h-4 text-[#7D5987]" />
+            </div>
+            <div className="min-w-0">
               <p className="text-base sm:text-xl font-bold text-[#49352D] tabular-nums leading-tight whitespace-nowrap">
-                {stats.weeklyAccuracy}%
+                {calculatedAccuracy}%
               </p>
-              <p className="text-[11px] sm:text-xs font-semibold text-[#8C7568] leading-snug mt-0.5 text-balance">
+              <p className="text-[11px] sm:text-xs font-semibold text-[#8C7568] leading-snug mt-0.5">
                 Genauigkeit
               </p>
             </div>
           </div>
         </div>
 
-        {/* Centerpiece: Weekly Activity Heatmap + Circular Donut + Today's Breakdown */}
-        <div className="bg-[#FFFDF9] border border-[#E6D7C8] rounded-2xl p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-6 items-center">
-          {/* Left: Mo Di Mi Do Fr Sa So Activity Grid */}
+        {/* 2. Weekly Activity Grid + 3. Accuracy Ring + 4. Today's Study Summary */}
+        <div className="bg-[#FFFDF9] border border-[#E9D8C8] rounded-2xl p-4 sm:p-5 grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
+          {/* Weekly Activity Grid */}
           <div className="lg:col-span-5 flex flex-col items-center lg:items-start">
-            <p className="text-xs font-bold text-[#6B5344] mb-3">
+            <p className="text-xs font-bold text-[#6B5344] mb-2.5">
               Wöchentliche Aktivität
             </p>
             <div className="grid grid-cols-7 gap-1.5 sm:gap-2 text-center">
               {WEEKDAYS.map((day) => (
                 <span
                   key={day}
-                  className="text-[11px] font-bold text-[#8C7568] mb-0.5"
+                  className="text-[11px] font-bold text-[#8C7568]"
                 >
                   {day}
                 </span>
@@ -125,8 +144,8 @@ export const ProgressSection: React.FC<ProgressSectionProps> = ({
                 week.map((val, dIdx) => (
                   <div
                     key={`${wIdx}-${dIdx}`}
-                    title={`Woche ${wIdx + 1}, ${WEEKDAYS[dIdx]}: ${val * 6} Karten`}
-                    className={`w-7 h-7 sm:w-8 sm:h-8 lg:w-7 lg:h-7 xl:w-8 xl:h-8 rounded-lg border transition-transform hover:scale-105 ${getCellColor(
+                    title={`Woche ${wIdx + 1}, ${WEEKDAYS[dIdx]}`}
+                    className={`w-7 h-7 sm:w-7.5 sm:h-7.5 rounded-lg border ${getCellColor(
                       val
                     )}`}
                   />
@@ -135,26 +154,25 @@ export const ProgressSection: React.FC<ProgressSectionProps> = ({
             </div>
           </div>
 
-          {/* Center: 82% Richtig Circular Donut Ring */}
-          <div className="lg:col-span-3 flex flex-col items-center justify-center pt-5 border-t border-[#EFE4D8] lg:pt-0 lg:border-t-0">
-            <div className="relative w-28 h-28 sm:w-32 sm:h-32 flex items-center justify-center">
+          {/* Accuracy Ring */}
+          <div className="lg:col-span-3 flex flex-col items-center justify-center pt-4 border-t border-[#E9D8C8] lg:pt-0 lg:border-t-0">
+            <div className="relative w-26 h-26 sm:w-28 sm:h-28 flex items-center justify-center">
               <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
-                {/* Soft Pink Background Ring */}
                 <circle
                   cx="60"
                   cy="60"
                   r={radius}
                   fill="none"
-                  stroke="#F4C7CE"
+                  stroke="#F4B5BE"
+                  strokeOpacity="0.45"
                   strokeWidth="12"
                 />
-                {/* Sage Green Progress Arc */}
                 <circle
                   cx="60"
                   cy="60"
                   r={radius}
                   fill="none"
-                  stroke="#9BAE88"
+                  stroke="#A9B99A"
                   strokeWidth="12"
                   strokeLinecap="round"
                   strokeDasharray={circumference}
@@ -162,31 +180,29 @@ export const ProgressSection: React.FC<ProgressSectionProps> = ({
                 />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                <span className="text-xl sm:text-2xl font-bold text-[#49352D] tabular-nums">
-                  {stats.weeklyAccuracy}%
+                <span className="text-xl font-bold text-[#49352D] tabular-nums">
+                  {calculatedAccuracy}%
                 </span>
-                <span className="text-xs font-bold text-[#6B5344]">Richtig</span>
+                <span className="text-[11px] font-bold text-[#6B5344]">Richtig</span>
               </div>
             </div>
           </div>
 
-          {/* Right: Heute gelernt / Richtig / Falsch table */}
-          <div className="lg:col-span-4 divide-y divide-[#EFE4D8] pt-4 border-t border-[#EFE4D8] lg:pt-0 lg:border-t-0">
-            <div className="py-2.5 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <BookOpen className="w-4 h-4 text-[#8C6754] shrink-0" />
-                <span className="text-sm font-bold text-[#49352D]">
-                  Heute gelernt
-                </span>
+          {/* Today's Study Summary: Gelernt, Richtig, Falsch */}
+          <div className="lg:col-span-4 divide-y divide-[#E9D8C8] pt-3 border-t border-[#E9D8C8] lg:pt-0 lg:border-t-0">
+            <div className="py-2 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <BookOpen className="w-4 h-4 text-[#8C7568] shrink-0" />
+                <span className="text-sm font-bold text-[#49352D]">Gelernt</span>
               </div>
               <span className="text-base font-bold text-[#49352D] tabular-nums shrink-0">
                 {stats.todayLearned}
               </span>
             </div>
 
-            <div className="py-2.5 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <Check className="w-4 h-4 text-[#6A7F5B] stroke-[2.8] shrink-0" />
+            <div className="py-2 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <Check className="w-4 h-4 text-[#5D734C] stroke-[2.8] shrink-0" />
                 <span className="text-sm font-bold text-[#49352D]">Richtig</span>
               </div>
               <span className="text-base font-bold text-[#49352D] tabular-nums shrink-0">
@@ -194,9 +210,9 @@ export const ProgressSection: React.FC<ProgressSectionProps> = ({
               </span>
             </div>
 
-            <div className="py-2.5 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <X className="w-4 h-4 text-[#D97786] stroke-[2.8] shrink-0" />
+            <div className="py-2 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <X className="w-4 h-4 text-[#C86D7A] stroke-[2.8] shrink-0" />
                 <span className="text-sm font-bold text-[#49352D]">Falsch</span>
               </div>
               <span className="text-base font-bold text-[#49352D] tabular-nums shrink-0">
@@ -206,29 +222,29 @@ export const ProgressSection: React.FC<ProgressSectionProps> = ({
           </div>
         </div>
 
-        {/* Cards Learned by Mode & Category */}
-        <div className="mt-5 sm:mt-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Left Column: By Learning Mode */}
-          <div className="bg-[#FFFDF9] border border-[#E6D7C8] rounded-2xl p-4 sm:p-5">
-            <h2 className="text-sm font-bold text-[#49352D] mb-3.5">
-              Karten nach Lernmodus
+        {/* 5. Progress by Learning Mode & 6. Progress by Deck */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Left Column: Progress by Learning Mode */}
+          <div className="bg-[#FFFDF9] border border-[#E9D8C8] rounded-2xl p-4 sm:p-5">
+            <h2 className="text-sm font-bold text-[#49352D] mb-3">
+              Fortschritt nach Lernmodus
             </h2>
 
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {/* Vocabulary */}
-              <div className="p-3 rounded-2xl bg-[#FCECEF]/80 border border-[#F2CFD6]">
+              <div className="p-3 rounded-2xl bg-[#F4B5BE]/25 border border-[#E98F9C]/40">
                 <div className="flex items-center justify-between gap-2 text-xs font-bold text-[#49352D] mb-1.5">
                   <span className="inline-flex items-center gap-1.5 min-w-0">
                     <BookOpen className="w-4 h-4 text-[#C86D7A] shrink-0" />
-                    <span className="truncate">Vokabeln (Wort ↔ Bedeutung)</span>
+                    <span className="truncate">Vokabeln</span>
                   </span>
                   <span className="tabular-nums shrink-0">
                     {vocabCards.filter((c) => c.learned).length} / {vocabCards.length}
                   </span>
                 </div>
-                <div className="w-full h-2 rounded-full bg-[#F3D2D8] overflow-hidden">
+                <div className="w-full h-2 rounded-full bg-[#F4B5BE]/40 overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-[#E58F9D]"
+                    className="h-full rounded-full bg-[#E98F9C]"
                     style={{
                       width: `${
                         vocabCards.length
@@ -245,20 +261,20 @@ export const ProgressSection: React.FC<ProgressSectionProps> = ({
               </div>
 
               {/* Writing */}
-              <div className="p-3 rounded-2xl bg-[#EDF1E4]/80 border border-[#D8E2C8]">
+              <div className="p-3 rounded-2xl bg-[#E8EEDD]/80 border border-[#A9B99A]/50">
                 <div className="flex items-center justify-between gap-2 text-xs font-bold text-[#49352D] mb-1.5">
                   <span className="inline-flex items-center gap-1.5 min-w-0">
-                    <Pencil className="w-4 h-4 text-[#6A7F5B] shrink-0" />
-                    <span className="truncate">Schreibübung (Schriftzeichen)</span>
+                    <Pencil className="w-4 h-4 text-[#5D734C] shrink-0" />
+                    <span className="truncate">Schreibübung</span>
                   </span>
                   <span className="tabular-nums shrink-0">
                     {writingCards.filter((c) => c.learned).length} /{' '}
                     {writingCards.length}
                   </span>
                 </div>
-                <div className="w-full h-2 rounded-full bg-[#D8E2C8] overflow-hidden">
+                <div className="w-full h-2 rounded-full bg-[#D1DEC0] overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-[#94A884]"
+                    className="h-full rounded-full bg-[#A9B99A]"
                     style={{
                       width: `${
                         writingCards.length
@@ -275,20 +291,20 @@ export const ProgressSection: React.FC<ProgressSectionProps> = ({
               </div>
 
               {/* Listening */}
-              <div className="p-3 rounded-2xl bg-[#F8EBF4]/80 border border-[#E8CCE0]">
+              <div className="p-3 rounded-2xl bg-[#E8D9EB]/65 border border-[#C9B3CE]">
                 <div className="flex items-center justify-between gap-2 text-xs font-bold text-[#49352D] mb-1.5">
                   <span className="inline-flex items-center gap-1.5 min-w-0">
-                    <Headphones className="w-4 h-4 text-[#A4678E] shrink-0" />
-                    <span className="truncate">Hörübung (Sätze verstehen)</span>
+                    <Headphones className="w-4 h-4 text-[#7D5987] shrink-0" />
+                    <span className="truncate">Hörübung</span>
                   </span>
                   <span className="tabular-nums shrink-0">
                     {listeningCards.filter((c) => c.learned).length} /{' '}
                     {listeningCards.length}
                   </span>
                 </div>
-                <div className="w-full h-2 rounded-full bg-[#E8CCE0] overflow-hidden">
+                <div className="w-full h-2 rounded-full bg-[#D6C2DB] overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-[#C98FB4]"
+                    className="h-full rounded-full bg-[#B48EB9]"
                     style={{
                       width: `${
                         listeningCards.length
@@ -306,14 +322,14 @@ export const ProgressSection: React.FC<ProgressSectionProps> = ({
             </div>
           </div>
 
-          {/* Right Column: By Deck Category + Cute Cat Motivation */}
-          <div className="bg-[#FFFDF9] border border-[#E6D7C8] rounded-2xl p-4 sm:p-5 flex flex-col justify-between">
+          {/* Right Column: Progress by Deck (All Decks) */}
+          <div className="bg-[#FFFDF9] border border-[#E9D8C8] rounded-2xl p-4 sm:p-5 flex flex-col justify-between">
             <div>
-              <h2 className="text-sm font-bold text-[#49352D] mb-3.5">
+              <h2 className="text-sm font-bold text-[#49352D] mb-3">
                 Fortschritt nach Deck
               </h2>
-              <div className="space-y-3">
-                {decks.slice(0, 4).map((deck) => {
+              <div className="space-y-2.5">
+                {decks.map((deck) => {
                   const dCards = cards.filter((c) => c.deckId === deck.id);
                   const dLearned = dCards.filter((c) => c.learned).length;
                   const pct = dCards.length
@@ -327,12 +343,16 @@ export const ProgressSection: React.FC<ProgressSectionProps> = ({
                           {dLearned} / {dCards.length} ({pct}%)
                         </span>
                       </div>
-                      <div className="w-full h-2 rounded-full bg-[#EFE4D8] overflow-hidden">
+                      <div className="w-full h-1.5 rounded-full bg-[#F8F1E7] overflow-hidden">
                         <div
                           className={`h-full rounded-full ${
-                            deck.theme === 'pink' ? 'bg-[#E58F9D]' : 'bg-[#94A884]'
+                            deck.theme === 'pink'
+                              ? 'bg-[#E98F9C]'
+                              : deck.theme === 'lavender'
+                              ? 'bg-[#B48EB9]'
+                              : 'bg-[#A9B99A]'
                           }`}
-                          style={{ width: `${Math.max(10, pct)}%` }}
+                          style={{ width: `${dCards.length ? Math.max(8, pct) : 0}%` }}
                         />
                       </div>
                     </div>
@@ -341,17 +361,17 @@ export const ProgressSection: React.FC<ProgressSectionProps> = ({
               </div>
             </div>
 
-            {/* Motivational Mascot Banner matching Reference 2 "加油!" */}
-            <div className="mt-5 pt-3 border-t border-[#EFE4D8] flex items-center justify-between gap-3">
+            {/* Subtle Mascot Milestone Footer */}
+            <div className="mt-4 pt-3 border-t border-[#E9D8C8] flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="font-chinese text-base font-bold text-[#49352D]">
+                <p className="font-chinese text-sm font-bold text-[#49352D]">
                   加油！一天一点点 ♡
                 </p>
                 <p className="text-xs font-semibold text-[#8C7568] leading-snug">
-                  Du machst jeden Tag tolle Fortschritte!
+                  {learnedCards} von {totalCards} Karten erfolgreich gemeistert.
                 </p>
               </div>
-              <CatHoldingApple className="w-20 h-16 shrink-0" />
+              <CatHoldingApple className="w-16 h-13 shrink-0" />
             </div>
           </div>
         </div>

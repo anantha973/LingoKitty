@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import {
   Layers,
   Plus,
-  Folder,
-  ChevronRight,
   BookOpen,
   Pencil,
   Headphones,
@@ -48,6 +46,7 @@ export const DecksSection: React.FC<DecksSectionProps> = ({
 }) => {
   const [showNewDeckModal, setShowNewDeckModal] = useState(false);
   const [showAddCardModal, setShowAddCardModal] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>('Alle');
 
   // New Deck Form State
   const [deckTitle, setDeckTitle] = useState('');
@@ -62,10 +61,21 @@ export const DecksSection: React.FC<DecksSectionProps> = ({
   const [cardGrammar, setCardGrammar] = useState('Nomen');
   const [cardMode, setCardMode] = useState<StudyMode>('vocab');
 
+  const categories = ['Alle', ...Array.from(new Set(decks.map((d) => d.category)))];
+  const filteredDecks =
+    selectedCategory === 'Alle'
+      ? decks
+      : decks.filter((d) => d.category === selectedCategory);
+
   const handleCreateDeckSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!deckTitle.trim()) return;
-    onCreateDeck(deckTitle.trim(), deckCategory.trim() || 'Allgemein', deckTheme, deckIllustration);
+    onCreateDeck(
+      deckTitle.trim(),
+      deckCategory.trim() || 'Allgemein',
+      deckTheme,
+      deckIllustration
+    );
     setDeckTitle('');
     setShowNewDeckModal(false);
   };
@@ -81,7 +91,6 @@ export const DecksSection: React.FC<DecksSectionProps> = ({
       grammar: cardGrammar.trim() || 'Wort',
       level: 'Eigenes Wort',
       mode: cardMode,
-      illustration: 'flower',
       learned: false,
     });
     setCardHanzi('');
@@ -93,50 +102,78 @@ export const DecksSection: React.FC<DecksSectionProps> = ({
   const renderIllustration = (type: DeckIllustrationType) => {
     switch (type) {
       case 'flower':
-        return <PottedFlowerIllustration className="w-12 h-14" />;
+        return <PottedFlowerIllustration className="w-11 h-13" />;
       case 'leaves':
-        return <LeavesInVaseIllustration className="w-12 h-14" />;
+        return <LeavesInVaseIllustration className="w-11 h-13" />;
       case 'dango':
-        return <DangoSkewerIllustration className="w-12 h-14" />;
+        return <DangoSkewerIllustration className="w-11 h-13" />;
       case 'apple':
-        return <AppleWithSlice className="w-14 h-12" />;
+        return <AppleWithSlice className="w-12 h-11" />;
       case 'cat':
-        return <CatHoldingApple className="w-14 h-12" />;
+        return <CatHoldingApple className="w-12 h-11" />;
       default:
-        return <PottedFlowerIllustration className="w-12 h-14" />;
+        return <PottedFlowerIllustration className="w-11 h-13" />;
     }
   };
 
   return (
     <div className="w-full max-w-4xl mx-auto">
       {/* Main Decks Container */}
-      <div className="bg-[#FDF7F0] border border-[#E6D7C8] rounded-3xl p-5 sm:p-7 shadow-xs">
-        {/* Top Bar matching Reference 3 Bottom-Left "Decks" + "+ Neue Deck" pill */}
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-[#FAD7DC]/80 border border-[#F0BFC7] flex items-center justify-center">
+      <div className="bg-[#FFF9F3] border border-[#E9D8C8] rounded-3xl p-4 sm:p-6 shadow-2xs">
+        {/* Top Header Row: Title & "+ Neues Deck" */}
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-[#F4B5BE]/45 border border-[#E98F9C]/50 flex items-center justify-center shrink-0">
               <Layers className="w-5 h-5 text-[#49352D]" />
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-[#49352D]">Decks</h1>
-              <p className="text-xs font-semibold text-[#8C7568]">
-                Wähle ein Deck zum Lernen oder erstelle eigene Lernkarten
+              <h1 className="text-xl sm:text-2xl font-bold text-[#49352D] leading-tight">
+                Meine Decks
+              </h1>
+              <p className="text-xs font-semibold text-[#8C7568] mt-0.5">
+                {decks.length} Decks · {cards.length} Karten insgesamt
               </p>
             </div>
           </div>
 
           <button
             onClick={() => setShowNewDeckModal(true)}
-            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-[#E98F9C] hover:bg-[#DC7E8C] text-white text-xs sm:text-sm font-bold shadow-2xs transition-all cursor-pointer whitespace-nowrap"
+            className="min-h-[44px] inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-[#E98F9C] hover:bg-[#DC7D8B] text-white text-xs sm:text-sm font-bold shadow-2xs transition-all cursor-pointer whitespace-nowrap"
           >
             <Plus className="w-4 h-4 stroke-[2.6]" />
             <span>Neues Deck</span>
           </button>
         </div>
 
-        {/* Visual Deck Cards Grid (All 6+ Decks) */}
+        {/* Category Filter Tabs */}
+        <div
+          className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-4 no-scrollbar"
+          role="tablist"
+          aria-label="Decks nach Kategorie filtern"
+        >
+          {categories.map((cat) => {
+            const isActive = selectedCategory === cat;
+            return (
+              <button
+                key={cat}
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => setSelectedCategory(cat)}
+                className={`min-h-[36px] px-3.5 py-1.5 rounded-full text-xs font-bold border transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                  isActive
+                    ? 'bg-[#49352D] text-[#FFF9F3] border-[#49352D]'
+                    : 'bg-[#F8F1E7] text-[#6B5344] border-[#E9D8C8] hover:border-[#C7B2A3]'
+                }`}
+              >
+                {cat}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Deck Cards Grid (Single unified view — no duplicate overview list below) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {decks.map((deck) => {
+          {filteredDecks.map((deck) => {
             const deckCards = cards.filter((c) => c.deckId === deck.id);
             const total = deckCards.length;
             const learned = deckCards.filter((c) => c.learned).length;
@@ -148,32 +185,23 @@ export const DecksSection: React.FC<DecksSectionProps> = ({
             ).length;
             const listeningCount = deckCards.filter((c) => c.mode === 'listening').length;
 
-            const surfaceStyle =
-              deck.theme === 'pink'
-                ? 'bg-[#FCECEF]/90 border-[#F2CFD6]'
-                : deck.theme === 'sage'
-                ? 'bg-[#EDF1E4]/90 border-[#D8E2C8]'
-                : deck.theme === 'lavender'
-                ? 'bg-[#F8EBF4]/90 border-[#E8CCE0]'
-                : 'bg-[#FFFDF9] border-[#E6D7C8]';
-
             const progressFill =
               deck.theme === 'pink'
-                ? 'bg-[#E58F9D]'
+                ? 'bg-[#E98F9C]'
                 : deck.theme === 'sage'
-                ? 'bg-[#94A884]'
+                ? 'bg-[#A9B99A]'
                 : deck.theme === 'lavender'
-                ? 'bg-[#C98FB4]'
+                ? 'bg-[#B48EB9]'
                 : 'bg-[#C89D7C]';
 
             return (
               <div
                 key={deck.id}
-                className={`rounded-2xl border p-4.5 flex flex-col justify-between transition-all hover:shadow-xs ${surfaceStyle}`}
+                className="rounded-2xl border border-[#E9D8C8] bg-[#FFFDF9] p-4 flex flex-col justify-between transition-all hover:shadow-xs"
               >
                 <div>
                   <div className="flex items-start justify-between gap-2">
-                    <div>
+                    <div className="min-w-0">
                       <span className="text-[11px] font-bold text-[#8C7568]">
                         {deck.category}
                       </span>
@@ -181,7 +209,7 @@ export const DecksSection: React.FC<DecksSectionProps> = ({
                         {deck.title}
                       </h2>
                       {deck.subtitle && (
-                        <p className="text-xs font-semibold text-[#6B5344] mt-0.5">
+                        <p className="text-xs font-semibold text-[#8C7568] mt-0.5 line-clamp-2">
                           {deck.subtitle}
                         </p>
                       )}
@@ -189,51 +217,62 @@ export const DecksSection: React.FC<DecksSectionProps> = ({
                     <div className="shrink-0">{renderIllustration(deck.illustration)}</div>
                   </div>
 
-                  {/* Breakdown of card modes inside deck */}
-                  <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] font-bold text-[#6B5344]">
-                    <span className="inline-flex items-center gap-1">
+                  {/* Subtle Category Colours Breakdown: Pink (Vokabeln), Sage (Schreiben), Lavender (Hören) */}
+                  <div className="mt-3.5 flex flex-wrap items-center gap-1.5 text-[11px] font-bold text-[#49352D]">
+                    <span
+                      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-[#F4B5BE]/35 border border-[#E98F9C]/40"
+                      title="Vokabelkarten"
+                    >
                       <BookOpen className="w-3 h-3 text-[#C86D7A]" />
-                      {vocabCount}
+                      <span>{vocabCount} Vokabeln</span>
                     </span>
-                    <span>·</span>
-                    <span className="inline-flex items-center gap-1">
-                      <Pencil className="w-3 h-3 text-[#6A7F5B]" />
-                      {writingCount}
+
+                    <span
+                      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-[#E8EEDD] border border-[#A9B99A]/50"
+                      title="Schreibkarten"
+                    >
+                      <Pencil className="w-3 h-3 text-[#5D734C]" />
+                      <span>{writingCount} Schreiben</span>
                     </span>
-                    <span>·</span>
-                    <span className="inline-flex items-center gap-1">
-                      <Headphones className="w-3 h-3 text-[#A4678E]" />
-                      {listeningCount}
+
+                    <span
+                      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-[#E8D9EB]/70 border border-[#C9B3CE]"
+                      title="Hörkarten"
+                    >
+                      <Headphones className="w-3 h-3 text-[#7D5987]" />
+                      <span>{listeningCount} Hören</span>
                     </span>
                   </div>
                 </div>
 
                 {/* Progress Bar & Action Buttons */}
-                <div className="mt-4 pt-3 border-t border-[#49352D]/10">
+                <div className="mt-4 pt-3 border-t border-[#E9D8C8]">
                   <div className="flex items-center justify-between text-xs font-bold text-[#6B5344] mb-1.5 tabular-nums">
-                    <span>{total} Karten</span>
+                    <span>
+                      {learned} / {total} Karten
+                    </span>
                     <span>{progressPct}% gelernt</span>
                   </div>
-                  <div className="w-full h-2 rounded-full bg-[#49352D]/10 overflow-hidden">
+                  <div className="w-full h-2 rounded-full bg-[#F8F1E7] border border-[#E9D8C8]/60 overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all duration-300 ${progressFill}`}
-                      style={{ width: `${Math.max(12, progressPct)}%` }}
+                      style={{ width: `${total > 0 ? Math.max(8, progressPct) : 0}%` }}
                     />
                   </div>
 
                   <div className="mt-3.5 flex items-center gap-2">
                     <button
                       onClick={() => onStartDeckStudy(deck.id)}
-                      className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-[#49352D] hover:bg-[#3A2821] text-[#FFF9F1] text-xs font-bold transition-colors cursor-pointer"
+                      className="flex-1 min-h-[42px] inline-flex items-center justify-center gap-1.5 py-2 px-3.5 rounded-xl bg-[#E98F9C] hover:bg-[#DC7D8B] text-white text-xs font-bold transition-colors cursor-pointer"
                     >
-                      <Play className="w-3 h-3 fill-current" />
+                      <Play className="w-3.5 h-3.5 fill-current" />
                       <span>Lernen</span>
                     </button>
 
                     <button
                       onClick={() => setShowAddCardModal(deck.id)}
-                      className="inline-flex items-center justify-center gap-1 py-2 px-3 rounded-xl bg-[#FFFDF9] hover:bg-[#F5E9DC] border border-[#E6D7C8] text-[#49352D] text-xs font-bold transition-colors cursor-pointer"
-                      title="Neue Karte hinzufügen"
+                      aria-label={`Neue Karte zu ${deck.title} hinzufügen`}
+                      className="min-h-[42px] inline-flex items-center justify-center gap-1 py-2 px-3 rounded-xl bg-[#F8F1E7] hover:bg-[#EFE4D6] border border-[#E9D8C8] text-[#49352D] text-xs font-bold transition-colors cursor-pointer"
                     >
                       <Plus className="w-3.5 h-3.5" />
                       <span>Karte</span>
@@ -244,69 +283,25 @@ export const DecksSection: React.FC<DecksSectionProps> = ({
             );
           })}
         </div>
-
-        {/* Compact Folder List View (Matches Reference 3 Bottom-Left "Decks" List Box) */}
-        <div className="mt-7 bg-[#FFFDF9] border border-[#E6D7C8] rounded-2xl p-4 sm:p-5">
-          <h2 className="text-sm font-bold text-[#6B5344] mb-3">
-            Schnellübersicht aller Decks
-          </h2>
-          <div className="divide-y divide-[#EFE4D8]">
-            {decks.map((deck) => {
-              const count = cards.filter((c) => c.deckId === deck.id).length;
-              return (
-                <div
-                  key={`list-${deck.id}`}
-                  className="py-3 first:pt-1 last:pb-1 flex items-center justify-between gap-3"
-                >
-                  <button
-                    onClick={() => onStartDeckStudy(deck.id)}
-                    className="flex-1 flex items-center gap-3.5 text-left group cursor-pointer"
-                  >
-                    <div className="w-10 h-10 rounded-xl bg-[#EDF1E4] border border-[#D8E2C8] flex items-center justify-center shrink-0">
-                      <Folder className="w-5 h-5 text-[#7C8F6C]" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-[#49352D] group-hover:text-[#C86D7A] transition-colors">
-                        {deck.title}
-                      </p>
-                      <p className="text-xs font-semibold text-[#8C7568] tabular-nums">
-                        {count} Karten · {deck.category}
-                      </p>
-                    </div>
-                  </button>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setShowAddCardModal(deck.id)}
-                      className="px-2.5 py-1.5 rounded-lg bg-[#F8F1E7] hover:bg-[#EFE4D8] text-xs font-bold text-[#6B5344] transition-colors cursor-pointer"
-                    >
-                      + Karte
-                    </button>
-                    <button
-                      onClick={() => onStartDeckStudy(deck.id)}
-                      aria-label={`${deck.title} öffnen`}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-[#8C7568] hover:text-[#49352D] cursor-pointer"
-                    >
-                      <ChevronRight className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
       </div>
 
       {/* Modal 1: Neues Deck erstellen */}
       {showNewDeckModal && (
-        <div className="fixed inset-0 z-50 bg-[#49352D]/35 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-[#FFF9F1] border-2 border-[#E6D7C8] rounded-3xl p-6 shadow-lg">
+        <div
+          className="fixed inset-0 z-50 bg-[#49352D]/35 backdrop-blur-xs flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="new-deck-title"
+        >
+          <div className="w-full max-w-md bg-[#FFF9F3] border-2 border-[#E9D8C8] rounded-3xl p-6 shadow-lg">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-[#49352D]">Neues Deck erstellen</h2>
+              <h2 id="new-deck-title" className="text-lg font-bold text-[#49352D]">
+                Neues Deck erstellen
+              </h2>
               <button
                 onClick={() => setShowNewDeckModal(false)}
-                aria-label="Schließen"
-                className="w-8 h-8 rounded-full bg-[#F5E9DC] flex items-center justify-center text-[#6B5344] hover:text-[#49352D] cursor-pointer"
+                aria-label="Dialog schließen"
+                className="w-9 h-9 rounded-full bg-[#F8F1E7] border border-[#E9D8C8] flex items-center justify-center text-[#6B5344] hover:text-[#49352D] cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -315,7 +310,7 @@ export const DecksSection: React.FC<DecksSectionProps> = ({
             <form onSubmit={handleCreateDeckSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-[#6B5344] mb-1">
-                  Deck-Name
+                  Deck-Name *
                 </label>
                 <input
                   type="text"
@@ -323,7 +318,7 @@ export const DecksSection: React.FC<DecksSectionProps> = ({
                   value={deckTitle}
                   onChange={(e) => setDeckTitle(e.target.value)}
                   placeholder="z.B. Essen & Restaurant"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#E6D7C8] text-sm font-bold text-[#49352D] focus:outline-none focus:border-[#E98F9C]"
+                  className="w-full min-h-[44px] px-3.5 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#E9D8C8] text-sm font-bold text-[#49352D] focus:outline-none focus:border-[#E98F9C]"
                 />
               </div>
 
@@ -336,7 +331,7 @@ export const DecksSection: React.FC<DecksSectionProps> = ({
                   value={deckCategory}
                   onChange={(e) => setDeckCategory(e.target.value)}
                   placeholder="z.B. HSK 1, Alltag, Grammatik"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#E6D7C8] text-sm font-bold text-[#49352D] focus:outline-none focus:border-[#E98F9C]"
+                  className="w-full min-h-[44px] px-3.5 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#E9D8C8] text-sm font-bold text-[#49352D] focus:outline-none focus:border-[#E98F9C]"
                 />
               </div>
 
@@ -348,25 +343,25 @@ export const DecksSection: React.FC<DecksSectionProps> = ({
                   <select
                     value={deckTheme}
                     onChange={(e) => setDeckTheme(e.target.value as DeckTheme)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#E6D7C8] text-sm font-bold text-[#49352D]"
+                    className="w-full min-h-[44px] px-3 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#E9D8C8] text-sm font-bold text-[#49352D]"
                   >
                     <option value="pink">Baby Pink</option>
                     <option value="sage">Salbeigrün</option>
                     <option value="cream">Creme Beige</option>
-                    <option value="lavender">Lavendel Rosa</option>
+                    <option value="lavender">Lavendel</option>
                   </select>
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-[#6B5344] mb-1">
-                    Illustration
+                    Symbol
                   </label>
                   <select
                     value={deckIllustration}
                     onChange={(e) =>
                       setDeckIllustration(e.target.value as DeckIllustrationType)
                     }
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#E6D7C8] text-sm font-bold text-[#49352D]"
+                    className="w-full min-h-[44px] px-3 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#E9D8C8] text-sm font-bold text-[#49352D]"
                   >
                     <option value="flower">Blumentopf</option>
                     <option value="leaves">Blätter-Vase</option>
@@ -381,13 +376,13 @@ export const DecksSection: React.FC<DecksSectionProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowNewDeckModal(false)}
-                  className="px-4 py-2.5 rounded-full bg-[#F3E9DC] text-xs font-bold text-[#6B5344] cursor-pointer"
+                  className="min-h-[42px] px-4 py-2 rounded-full bg-[#F8F1E7] border border-[#E9D8C8] text-xs font-bold text-[#6B5344] cursor-pointer"
                 >
                   Abbrechen
                 </button>
                 <button
                   type="submit"
-                  className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-[#E98F9C] hover:bg-[#DC7E8C] text-white text-xs font-bold shadow-2xs cursor-pointer"
+                  className="min-h-[42px] inline-flex items-center gap-1.5 px-5 py-2 rounded-full bg-[#E98F9C] hover:bg-[#DC7D8B] text-white text-xs font-bold shadow-2xs cursor-pointer"
                 >
                   <Check className="w-4 h-4" />
                   <span>Deck speichern</span>
@@ -400,19 +395,26 @@ export const DecksSection: React.FC<DecksSectionProps> = ({
 
       {/* Modal 2: Neue Karte zu Deck hinzufügen */}
       {showAddCardModal && (
-        <div className="fixed inset-0 z-50 bg-[#49352D]/35 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-[#FFF9F1] border-2 border-[#E6D7C8] rounded-3xl p-6 shadow-lg">
+        <div
+          className="fixed inset-0 z-50 bg-[#49352D]/35 backdrop-blur-xs flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="new-card-title"
+        >
+          <div className="w-full max-w-md bg-[#FFF9F3] border-2 border-[#E9D8C8] rounded-3xl p-6 shadow-lg">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-lg font-bold text-[#49352D]">Neue Karte hinzufügen</h2>
+                <h2 id="new-card-title" className="text-lg font-bold text-[#49352D]">
+                  Neue Karte hinzufügen
+                </h2>
                 <p className="text-xs font-semibold text-[#8C7568]">
                   Deck: {decks.find((d) => d.id === showAddCardModal)?.title}
                 </p>
               </div>
               <button
                 onClick={() => setShowAddCardModal(null)}
-                aria-label="Schließen"
-                className="w-8 h-8 rounded-full bg-[#F5E9DC] flex items-center justify-center text-[#6B5344] hover:text-[#49352D] cursor-pointer"
+                aria-label="Dialog schließen"
+                className="w-9 h-9 rounded-full bg-[#F8F1E7] border border-[#E9D8C8] flex items-center justify-center text-[#6B5344] hover:text-[#49352D] cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -430,7 +432,7 @@ export const DecksSection: React.FC<DecksSectionProps> = ({
                   value={cardHanzi}
                   onChange={(e) => setCardHanzi(e.target.value)}
                   placeholder="z.B. 苹果 oder 我想喝咖啡。"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#E6D7C8] font-chinese text-base font-bold text-[#49352D] focus:outline-none focus:border-[#E98F9C]"
+                  className="w-full min-h-[44px] px-3.5 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#E9D8C8] font-chinese text-base font-bold text-[#49352D] focus:outline-none focus:border-[#E98F9C]"
                 />
               </div>
 
@@ -443,7 +445,7 @@ export const DecksSection: React.FC<DecksSectionProps> = ({
                   value={cardPinyin}
                   onChange={(e) => setCardPinyin(e.target.value)}
                   placeholder="z.B. píngguǒ"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#E6D7C8] text-sm font-bold text-[#49352D] focus:outline-none focus:border-[#E98F9C]"
+                  className="w-full min-h-[44px] px-3.5 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#E9D8C8] text-sm font-bold text-[#49352D] focus:outline-none focus:border-[#E98F9C]"
                 />
               </div>
 
@@ -457,7 +459,7 @@ export const DecksSection: React.FC<DecksSectionProps> = ({
                   value={cardGerman}
                   onChange={(e) => setCardGerman(e.target.value)}
                   placeholder="z.B. (der) Apfel"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#E6D7C8] text-sm font-bold text-[#49352D] focus:outline-none focus:border-[#E98F9C]"
+                  className="w-full min-h-[44px] px-3.5 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#E9D8C8] text-sm font-bold text-[#49352D] focus:outline-none focus:border-[#E98F9C]"
                 />
               </div>
 
@@ -469,7 +471,7 @@ export const DecksSection: React.FC<DecksSectionProps> = ({
                   <select
                     value={cardMode}
                     onChange={(e) => setCardMode(e.target.value as StudyMode)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#E6D7C8] text-sm font-bold text-[#49352D]"
+                    className="w-full min-h-[44px] px-3 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#E9D8C8] text-sm font-bold text-[#49352D]"
                   >
                     <option value="vocab">Vokabeln</option>
                     <option value="writing">Schreibübung</option>
@@ -486,7 +488,7 @@ export const DecksSection: React.FC<DecksSectionProps> = ({
                     value={cardGrammar}
                     onChange={(e) => setCardGrammar(e.target.value)}
                     placeholder="Nomen, Verb, Satz..."
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#E6D7C8] text-sm font-bold text-[#49352D]"
+                    className="w-full min-h-[44px] px-3 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#E9D8C8] text-sm font-bold text-[#49352D]"
                   />
                 </div>
               </div>
@@ -495,13 +497,13 @@ export const DecksSection: React.FC<DecksSectionProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowAddCardModal(null)}
-                  className="px-4 py-2.5 rounded-full bg-[#F3E9DC] text-xs font-bold text-[#6B5344] cursor-pointer"
+                  className="min-h-[42px] px-4 py-2 rounded-full bg-[#F8F1E7] border border-[#E9D8C8] text-xs font-bold text-[#6B5344] cursor-pointer"
                 >
                   Abbrechen
                 </button>
                 <button
                   type="submit"
-                  className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-[#8FA47D] hover:bg-[#7D926B] text-white text-xs font-bold shadow-2xs cursor-pointer"
+                  className="min-h-[42px] inline-flex items-center gap-1.5 px-5 py-2 rounded-full bg-[#7F966B] hover:bg-[#6E855B] text-white text-xs font-bold shadow-2xs cursor-pointer"
                 >
                   <Check className="w-4 h-4" />
                   <span>Karte hinzufügen</span>

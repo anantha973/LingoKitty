@@ -3,15 +3,15 @@
 @layer base {
   :root {
     --bg-linen: #F8F1E7;
-    --card-cream: #FFF9F1;
+    --card-cream: #FFF9F3;
     --primary-pink: #F4B5BE;
-    --accent-rose: #E98F9C;
+    --strong-pink: #E98F9C;
     --sage-green: #A9B99A;
     --light-sage: #E8EEDD;
-    --soft-lavender: #F5E6F0;
+    --soft-lavender: #E8D9EB;
     --text-brown: #49352D;
     --text-muted: #8C7568;
-    --border-warm: #E6D7C8;
+    --border-warm: #E9D8C8;
     --border-pink: #E8B8C0;
   }
 

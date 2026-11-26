@@ -1,5 +1,5 @@
-import React from 'react';
-import { Settings as SettingsIcon, Check } from 'lucide-react';
+import React, { useState } from 'react';
+import { Settings as SettingsIcon, Check, RotateCcw } from 'lucide-react';
 import { StudyDirection, StudyMode, UserSettings } from '../types';
 import { CatSleeping } from './KawaiiIllustrations';
 
@@ -20,27 +20,35 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({
   onUpdateThemeAccent,
   onResetDemoData,
 }) => {
+  const [resetConfirmed, setResetConfirmed] = useState(false);
+
+  const handleResetClick = () => {
+    onResetDemoData();
+    setResetConfirmed(true);
+    window.setTimeout(() => setResetConfirmed(false), 2500);
+  };
+
   return (
     <div className="w-full max-w-4xl mx-auto">
-      {/* Main Einstellungen Card matching Reference 3 Bottom-Right */}
-      <div className="relative overflow-hidden bg-[#FDF7F0] border border-[#E6D7C8] rounded-3xl p-5 sm:p-8 shadow-xs">
-        <div className="flex items-center gap-2.5 mb-6">
-          <div className="w-10 h-10 rounded-2xl bg-[#FAD7DC]/80 border border-[#F0BFC7] flex items-center justify-center">
+      {/* Main Einstellungen Card */}
+      <div className="relative overflow-hidden bg-[#FFF9F3] border border-[#E9D8C8] rounded-3xl p-4 sm:p-6 shadow-2xs">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-10 h-10 rounded-2xl bg-[#F4B5BE]/45 border border-[#E98F9C]/50 flex items-center justify-center shrink-0">
             <SettingsIcon className="w-5 h-5 text-[#49352D]" />
           </div>
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-[#49352D]">
+            <h1 className="text-xl sm:text-2xl font-bold text-[#49352D] leading-tight">
               Einstellungen
             </h1>
-            <p className="text-xs font-semibold text-[#8C7568]">
-              Passe Kartenrichtung, aktive Lernmodi und Pinyin-Anzeige an
+            <p className="text-xs font-semibold text-[#8C7568] mt-0.5">
+              Standard-Lernrichtung, aktive Kartentypen und Darstellung anpassen
             </p>
           </div>
         </div>
 
-        <div className="bg-[#FFFDF9] border border-[#E6D7C8] rounded-2xl p-5 sm:p-7 space-y-6">
+        <div className="bg-[#FFFDF9] border border-[#E9D8C8] rounded-2xl p-4 sm:p-6 space-y-5">
           {/* 1. Kartenrichtung (Standard) */}
-          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:items-center pb-5 border-b border-[#EFE4D8]">
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:items-center pb-5 border-b border-[#E9D8C8]">
             <div className="sm:col-span-5">
               <label
                 htmlFor="direction-select"
@@ -48,8 +56,8 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({
               >
                 Kartenrichtung (Standard)
               </label>
-              <p className="text-xs font-semibold text-[#8C7568] mt-0.5">
-                Standardrichtung für Vokabelkarten
+              <p className="text-xs font-semibold text-[#8C7568] mt-0.5 leading-snug">
+                Startrichtung für Vokabelkarten. Ein manueller Richtungswechsel während einer aktiven Sitzung bleibt davon unberührt.
               </p>
             </div>
 
@@ -60,7 +68,7 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({
                 onChange={(e) =>
                   onUpdateDirection(e.target.value as StudyDirection)
                 }
-                className="px-4 py-2.5 rounded-xl bg-[#FDF7F0] border border-[#E6D7C8] text-sm font-bold text-[#49352D] focus:outline-none focus:border-[#E98F9C] cursor-pointer"
+                className="min-h-[44px] px-4 py-2.5 rounded-xl bg-[#F8F1E7] border border-[#E9D8C8] text-sm font-bold text-[#49352D] focus:outline-none focus:border-[#E98F9C] cursor-pointer"
               >
                 <option value="zh-to-de">Chinesisch → Deutsch</option>
                 <option value="de-to-zh">Deutsch → Chinesisch</option>
@@ -69,23 +77,23 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({
           </div>
 
           {/* 2. Kartentypen im Lernmodus (Vokabeln, Schreiben, Hören) */}
-          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 pb-5 border-b border-[#EFE4D8]">
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 pb-5 border-b border-[#E9D8C8]">
             <div className="sm:col-span-5">
               <p className="text-sm font-bold text-[#49352D]">
-                Kartentypen im Lernmodus
+                Aktivierte Lernmodi
               </p>
-              <p className="text-xs font-semibold text-[#8C7568] mt-0.5">
-                Wähle, welche Übungsformen beim gemischten Lernen erscheinen
+              <p className="text-xs font-semibold text-[#8C7568] mt-0.5 leading-snug">
+                Wähle, welche Kartentypen im gemischten Modus („Alle Modi“) abgefragt werden
               </p>
             </div>
 
-            <div className="sm:col-span-7 space-y-2.5">
+            <div className="sm:col-span-7 space-y-2">
               {(
                 [
                   {
                     id: 'vocab',
                     label: 'Vokabeln',
-                    desc: 'Schriftzeichen & deutsche Bedeutung',
+                    desc: 'Schriftzeichen, Pinyin & deutsche Bedeutung',
                   },
                   {
                     id: 'writing',
@@ -104,14 +112,16 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({
                   <button
                     key={item.id}
                     type="button"
+                    role="checkbox"
+                    aria-checked={checked}
                     onClick={() => onToggleMode(item.id)}
-                    className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#FDF7F0] transition-colors text-left cursor-pointer"
+                    className="w-full min-h-[48px] flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#F8F1E7] transition-colors text-left cursor-pointer"
                   >
                     <span
                       className={`w-6 h-6 rounded-lg flex items-center justify-center border transition-colors shrink-0 ${
                         checked
-                          ? 'bg-[#E38B98] border-[#D57886] text-white'
-                          : 'bg-[#FFF9F1] border-[#D8C5B4] text-transparent'
+                          ? 'bg-[#E98F9C] border-[#D57886] text-white'
+                          : 'bg-[#FFF9F3] border-[#D8C5B4] text-transparent'
                       }`}
                     >
                       <Check className="w-4 h-4 stroke-[3]" />
@@ -131,13 +141,13 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({
           </div>
 
           {/* 3. Pinyin Visibility Toggle */}
-          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:items-center pb-5 border-b border-[#EFE4D8]">
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:items-center pb-5 border-b border-[#E9D8C8]">
             <div className="sm:col-span-5">
               <p className="text-sm font-bold text-[#49352D]">
                 Pinyin-Anzeige
               </p>
-              <p className="text-xs font-semibold text-[#8C7568] mt-0.5">
-                Zeige Pinyin als Aussprachehilfe auf Vokabelkarten
+              <p className="text-xs font-semibold text-[#8C7568] mt-0.5 leading-snug">
+                Zeige Pinyin als Aussprachehilfe auf der Vorderseite von Vokabelkarten
               </p>
             </div>
 
@@ -147,15 +157,15 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({
                 role="switch"
                 aria-checked={settings.showPinyin}
                 onClick={onTogglePinyin}
-                className={`inline-flex items-center gap-3 px-4 py-2 rounded-full border text-xs font-bold transition-all cursor-pointer ${
+                className={`min-h-[44px] inline-flex items-center gap-3 px-4 py-2 rounded-full border text-xs font-bold transition-all cursor-pointer ${
                   settings.showPinyin
-                    ? 'bg-[#FAD7DC] border-[#E98F9C] text-[#49352D]'
-                    : 'bg-[#F3E9DC] border-[#D8C5B4] text-[#6B5344]'
+                    ? 'bg-[#F4B5BE]/45 border-[#E98F9C] text-[#49352D]'
+                    : 'bg-[#F8F1E7] border-[#D8C5B4] text-[#6B5344]'
                 }`}
               >
                 <span
                   className={`w-3.5 h-3.5 rounded-full transition-colors ${
-                    settings.showPinyin ? 'bg-[#D86C7C]' : 'bg-[#A39286]'
+                    settings.showPinyin ? 'bg-[#E98F9C]' : 'bg-[#A39286]'
                   }`}
                 />
                 <span>
@@ -167,22 +177,22 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({
             </div>
           </div>
 
-          {/* 4. Design Swatches (Pastel Beige / Pink / Sage palette matching Reference 3) */}
+          {/* 4. Appearance / Accent Swatches */}
           <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:items-center">
             <div className="sm:col-span-5">
-              <p className="text-sm font-bold text-[#49352D]">Design</p>
+              <p className="text-sm font-bold text-[#49352D]">Farbakzent</p>
               <p className="text-xs font-semibold text-[#8C7568] mt-0.5">
-                Sanftes Pastell-Papierware-Farbschema
+                Sanftes Pastell-Farbschema
               </p>
             </div>
 
             <div className="sm:col-span-7 flex items-center gap-3">
               {(
                 [
-                  { id: 'pink', color: 'bg-[#F4B5BE]', ring: 'ring-[#D87A88]', label: 'Baby Pink' },
-                  { id: 'sage', color: 'bg-[#B9C7A7]', ring: 'ring-[#7F946D]', label: 'Salbeigrün' },
+                  { id: 'pink', color: 'bg-[#F4B5BE]', ring: 'ring-[#E98F9C]', label: 'Baby Pink' },
+                  { id: 'sage', color: 'bg-[#A9B99A]', ring: 'ring-[#7F946D]', label: 'Salbeigrün' },
                   { id: 'cream', color: 'bg-[#F2DEC7]', ring: 'ring-[#C5A482]', label: 'Warmes Creme' },
-                  { id: 'lavender', color: 'bg-[#DFCCE6]', ring: 'ring-[#A889B5]', label: 'Zartes Lavendel' },
+                  { id: 'lavender', color: 'bg-[#E8D9EB]', ring: 'ring-[#A889B5]', label: 'Zartes Lavendel' },
                 ] as const
               ).map((swatch) => {
                 const isSelected = settings.themeAccent === swatch.id;
@@ -193,9 +203,9 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({
                     onClick={() => onUpdateThemeAccent(swatch.id)}
                     aria-label={swatch.label}
                     title={swatch.label}
-                    className={`w-8 h-8 rounded-full ${swatch.color} transition-transform cursor-pointer ${
+                    className={`w-10 h-10 rounded-full border border-[#49352D]/15 ${swatch.color} transition-transform cursor-pointer ${
                       isSelected
-                        ? `ring-2 ring-offset-2 ring-offset-[#FFFDF9] ${swatch.ring} scale-110`
+                        ? `ring-2 ring-offset-2 ring-offset-[#FFFDF9] ${swatch.ring} scale-105`
                         : 'hover:scale-105 opacity-85'
                     }`}
                   />
@@ -205,22 +215,27 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({
           </div>
         </div>
 
-        {/* Footer row with Demo-Daten zurücksetzen & Sleeping Cat Mascot */}
-        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="text-xs font-semibold text-[#8C7568]">
-            <span>Sprachprofil: Deutsch → Vereinfachtes Chinesisch (Mandarin)</span>
-            <span className="mx-2">·</span>
+        {/* Footer row with Beispieldaten zurücksetzen & Sleeping Cat Mascot */}
+        <div className="mt-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-[#8C7568]">
+            <span>Sprachprofil: Deutsch → Vereinfachtes Chinesisch</span>
+            <span>·</span>
             <button
               type="button"
-              onClick={onResetDemoData}
-              className="underline hover:text-[#49352D] cursor-pointer"
+              onClick={handleResetClick}
+              className="min-h-[36px] inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#F8F1E7] hover:bg-[#EFE4D6] border border-[#E9D8C8] text-[#49352D] font-bold transition-colors cursor-pointer"
             >
-              Beispieldaten zurücksetzen
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>
+                {resetConfirmed
+                  ? 'Beispieldaten wiederhergestellt ✓'
+                  : 'Beispieldaten zurücksetzen'}
+              </span>
             </button>
           </div>
 
-          <div className="-mb-3">
-            <CatSleeping className="w-36 h-26" />
+          <div className="-mb-2">
+            <CatSleeping className="w-32 h-22" />
           </div>
         </div>
       </div>
