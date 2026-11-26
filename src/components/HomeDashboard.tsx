@@ -8,7 +8,14 @@ import {
   Sparkles,
   CheckCircle2,
 } from 'lucide-react';
-import { CardSrsState, Deck, Flashcard, PlacementResult, StudyStats } from '../types';
+import {
+  CardSrsState,
+  Deck,
+  Flashcard,
+  PlacementResult,
+  StudyStats,
+  UiLanguage,
+} from '../types';
 import {
   CatWithBobaAndBao,
   CuteCalendarIcon,
@@ -18,6 +25,7 @@ import {
   DeckStickerArtwork,
 } from './KawaiiIllustrations';
 import { AnimatedMascotScene } from './AnimatedMascotScene';
+import { getUiStrings } from '../data/uiStrings';
 
 interface HomeDashboardProps {
   decks: Deck[];
@@ -25,6 +33,7 @@ interface HomeDashboardProps {
   stats: StudyStats;
   srsMap: Record<string, CardSrsState>;
   placement: PlacementResult;
+  uiLanguage?: UiLanguage;
   onStartStudy: (deckId?: string) => void;
   onOpenDecks: () => void;
   onOpenPlacement: () => void;
@@ -36,10 +45,13 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
   stats,
   srsMap,
   placement,
+  uiLanguage = 'de',
   onStartStudy,
   onOpenDecks,
   onOpenPlacement,
 }) => {
+  const t = getUiStrings(uiLanguage).home;
+  const navT = getUiStrings(uiLanguage).nav;
   const totalCardsCount = cards.length;
   const featuredDecks = decks.slice(0, 3);
 
@@ -73,7 +85,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
           />
         </div>
         <span className="text-xs font-semibold text-[#8C7568]">
-          Little steps, big progress.
+          {navT.motto}
         </span>
       </div>
 
@@ -93,11 +105,11 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
               <div className="flex items-center gap-4">
                 <CuteCalendarIcon className="w-14 h-14 shrink-0" />
                 <div>
-                  <h1 className="text-sm font-bold text-[#6B5344]">Heute lernen</h1>
+                  <h1 className="text-sm font-bold text-[#6B5344]">{t.studyToday}</h1>
                   <p className="text-2xl sm:text-3xl font-bold text-[#49352D] tabular-nums leading-tight mt-0.5">
                     {stats.dueToday}{' '}
                     <span className="text-base sm:text-lg font-semibold text-[#6B5344]">
-                      Karten
+                      {t.cardsWord}
                     </span>
                   </p>
                 </div>
@@ -108,7 +120,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                   onClick={() => onStartStudy()}
                   className="inline-flex items-center justify-center gap-2.5 px-6 py-2.5 rounded-full bg-[#E38B98] hover:bg-[#D87A88] active:scale-[0.99] text-white font-bold text-sm shadow-xs transition-all cursor-pointer whitespace-nowrap"
                 >
-                  <span>Jetzt lernen</span>
+                  <span>{t.studyNow}</span>
                   <Play className="w-3.5 h-3.5 fill-current" />
                 </button>
 
@@ -119,12 +131,14 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                   {placement.completed ? (
                     <>
                       <CheckCircle2 className="w-4 h-4 text-[#7F946D]" />
-                      <span>Niveau: HSK {placement.recommendedHskLevel}</span>
+                      <span>
+                        {t.levelPrefix} {placement.recommendedHskLevel}
+                      </span>
                     </>
                   ) : (
                     <>
                       <Sparkles className="w-4 h-4 text-[#C86D7A]" />
-                      <span>Einstufungstest</span>
+                      <span>{t.placementBtn}</span>
                     </>
                   )}
                 </button>
@@ -149,13 +163,16 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
             <div className="min-w-0">
               <p className="text-xs sm:text-sm font-bold text-[#49352D]">
                 {placement.completed
-                  ? `Kalibriert für Kantonesisch → Mandarin · Lesen HSK ${placement.readingLevel} (${placement.readingAccuracy}%) · Hören HSK ${placement.listeningLevel} (${placement.listeningAccuracy}%)`
-                  : 'Sprichst du schon Kantonesisch? Starte den 2-Minuten-Einstufungstest.'}
+                  ? t.calibratedTitle(
+                      placement.readingLevel,
+                      placement.readingAccuracy,
+                      placement.listeningLevel,
+                      placement.listeningAccuracy
+                    )
+                  : t.uncalibratedTitle}
               </p>
               <p className="text-xs font-semibold text-[#8C7568] mt-0.5">
-                {placement.completed
-                  ? 'Vertraute Kognate werden beschleunigt — echte Mandarin-Unterschiede bleiben im Fokus.'
-                  : 'Wir überspringen vertraute Wörter und testen Lesen & Mandarin-Hören getrennt.'}
+                {placement.completed ? t.calibratedDesc : t.uncalibratedDesc}
               </p>
             </div>
           </div>
@@ -163,7 +180,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
             onClick={onOpenPlacement}
             className="shrink-0 px-4 py-2 rounded-full bg-[#E3ECD6] hover:bg-[#D4E2C1] border border-[#C5D4B3] text-xs font-bold text-[#49352D] cursor-pointer whitespace-nowrap"
           >
-            {placement.completed ? 'Neu testen' : 'Test starten'}
+            {placement.completed ? t.retest : t.startTest}
           </button>
         </div>
 
@@ -176,7 +193,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                 {stats.streakDays}
               </p>
               <p className="text-xs font-semibold text-[#8C7568] leading-snug mt-0.5 text-balance">
-                Tage in Folge
+                {t.streak}
               </p>
             </div>
           </div>
@@ -188,7 +205,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                 {totalCardsCount}
               </p>
               <p className="text-xs font-semibold text-[#8C7568] leading-snug mt-0.5 text-balance">
-                Karten gesamt
+                {t.totalCards}
               </p>
             </div>
           </div>
@@ -200,7 +217,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                 {stats.weeklyAccuracy}%
               </p>
               <p className="text-xs font-semibold text-[#8C7568] leading-snug mt-0.5 text-balance">
-                Richtig diese Woche
+                {t.weeklyAccuracy}
               </p>
             </div>
           </div>
@@ -209,12 +226,12 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
         {/* Meine Decks Section */}
         <div className="mt-7">
           <div className="flex items-center justify-between mb-3.5">
-            <h2 className="text-lg font-bold text-[#49352D]">Meine Decks</h2>
+            <h2 className="text-lg font-bold text-[#49352D]">{t.myDecks}</h2>
             <button
               onClick={onOpenDecks}
               className="inline-flex items-center gap-1 text-xs sm:text-sm font-bold text-[#6B5344] hover:text-[#49352D] transition-colors cursor-pointer"
             >
-              <span>Alle anzeigen</span>
+              <span>{t.viewAll}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -258,7 +275,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
 
                   <div className="mt-3">
                     <p className="text-xs font-semibold text-[#6B5344] tabular-nums mb-1.5">
-                      {learned} / {total} Karten
+                      {learned} / {total} {t.cardsWord}
                     </p>
                     <div className={`w-full h-2 rounded-full overflow-hidden ${barTrack}`}>
                       <div

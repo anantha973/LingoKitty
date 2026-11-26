@@ -108,7 +108,10 @@ export interface PlacementResult {
   completedAt?: string;
 }
 
+export type UiLanguage = 'de' | 'en';
+
 export interface UserSettings {
+  uiLanguage?: UiLanguage;
   defaultDirection: StudyDirection;
   enabledModes: {
     vocab: boolean;

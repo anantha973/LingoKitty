@@ -73,6 +73,7 @@ export const INITIAL_CARDS: Flashcard[] = [
 ];
 
 export const INITIAL_SETTINGS: UserSettings = {
+  uiLanguage: 'de',
   defaultDirection: 'zh-to-de',
   enabledModes: {
     vocab: true,

@@ -16,6 +16,7 @@ import {
   StudyDirection,
   StudyMode,
   StudyStats,
+  UiLanguage,
   UserSettings,
 } from './types';
 import {
@@ -68,9 +69,10 @@ export default function App() {
   const [cards, setCards] = useState<Flashcard[]>(() =>
     loadFromStorage(STORAGE_KEYS.CARDS, INITIAL_CARDS)
   );
-  const [settings, setSettings] = useState<UserSettings>(() =>
-    loadFromStorage(STORAGE_KEYS.SETTINGS, INITIAL_SETTINGS)
-  );
+  const [settings, setSettings] = useState<UserSettings>(() => ({
+    ...INITIAL_SETTINGS,
+    ...loadFromStorage(STORAGE_KEYS.SETTINGS, INITIAL_SETTINGS),
+  }));
   const [stats, setStats] = useState<StudyStats>(() =>
     loadFromStorage(STORAGE_KEYS.STATS, INITIAL_STATS)
   );
@@ -173,6 +175,12 @@ export default function App() {
     },
     []
   );
+
+  const handleUpdateUiLanguage = useCallback((uiLanguage: UiLanguage) => {
+    setSettings((prev) => ({ ...prev, uiLanguage }));
+  }, []);
+
+  const uiLang: UiLanguage = settings.uiLanguage ?? 'de';
 
   const handleRateCard = useCallback(
     (cardId: string, rating: ReviewRating, direction: StudyDirection = 'zh-to-de') => {
@@ -300,7 +308,11 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-[#F8F1E7] text-[#49352D]">
-      <DesktopSidebar activeSection={activeSection} onNavigate={handleNavigate} />
+      <DesktopSidebar
+        activeSection={activeSection}
+        onNavigate={handleNavigate}
+        uiLanguage={uiLang}
+      />
 
       <main className="flex-1 px-4 pt-5 pb-24 md:px-8 md:py-8 overflow-y-auto">
         {activeSection === 'home' && (
@@ -310,6 +322,7 @@ export default function App() {
             stats={stats}
             srsMap={srsMap}
             placement={placement}
+            uiLanguage={uiLang}
             onStartStudy={handleStartStudy}
             onOpenDecks={() => handleNavigate('decks')}
             onOpenPlacement={() => setShowPlacementModal(true)}
@@ -336,6 +349,7 @@ export default function App() {
           <DecksSection
             decks={decks}
             cards={cards}
+            uiLanguage={uiLang}
             onStartDeckStudy={handleStartStudy}
             onCreateDeck={handleCreateDeck}
             onAddCard={handleAddCard}
@@ -343,7 +357,12 @@ export default function App() {
         )}
 
         {activeSection === 'progress' && (
-          <ProgressSection decks={decks} cards={cards} stats={stats} />
+          <ProgressSection
+            decks={decks}
+            cards={cards}
+            stats={stats}
+            uiLanguage={uiLang}
+          />
         )}
 
         {activeSection === 'settings' && (
@@ -353,16 +372,22 @@ export default function App() {
             onToggleMode={handleToggleMode}
             onTogglePinyin={handleTogglePinyin}
             onUpdateThemeAccent={handleUpdateThemeAccent}
+            onUpdateUiLanguage={handleUpdateUiLanguage}
             onResetDemoData={handleResetDemoData}
           />
         )}
       </main>
 
-      <MobileBottomNav activeSection={activeSection} onNavigate={handleNavigate} />
+      <MobileBottomNav
+        activeSection={activeSection}
+        onNavigate={handleNavigate}
+        uiLanguage={uiLang}
+      />
 
       {showPlacementModal && (
         <PlacementQuizModal
           questions={PLACEMENT_QUESTIONS}
+          uiLanguage={uiLang}
           onClose={() => setShowPlacementModal(false)}
           onComplete={handleCompletePlacement}
         />

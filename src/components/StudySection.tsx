@@ -43,6 +43,7 @@ import {
   SmallSakuraFlower,
 } from './KawaiiIllustrations';
 import { AnimatedMascotScene } from './AnimatedMascotScene';
+import { getUiStrings } from '../data/uiStrings';
 
 interface StudySectionProps {
   decks: Deck[];
@@ -58,43 +59,13 @@ interface StudySectionProps {
   onOpenSettings: () => void;
 }
 
-const CONFIDENCE_BUTTONS: {
-  key: RatingKey;
-  label: string;
-  sub: string;
-  cls: string;
-}[] = [
-  {
-    key: '1',
-    label: '1 · Nochmal',
-    sub: 'sofort',
-    cls: 'bg-[#FAD7DC] hover:bg-[#F4B5BE] border-[#E598A4] text-[#49352D]',
-  },
-  {
-    key: '2',
-    label: '2 · Schwer',
-    sub: 'kurz',
-    cls: 'bg-[#FBE7D3] hover:bg-[#F5D6B8] border-[#E5BE96] text-[#49352D]',
-  },
-  {
-    key: '3',
-    label: '3 · Geht',
-    sub: 'mittel',
-    cls: 'bg-[#F3E9DC] hover:bg-[#E6D7C8] border-[#D8C5B4] text-[#49352D]',
-  },
-  {
-    key: '4',
-    label: '4 · Gut',
-    sub: 'sicher',
-    cls: 'bg-[#E5EFD9] hover:bg-[#D5E5C2] border-[#B4C89D] text-[#3F5232]',
-  },
-  {
-    key: '5',
-    label: '5 · Sofort',
-    sub: 'fast-track',
-    cls: 'bg-[#DCE8CE] hover:bg-[#C8D9B5] border-[#96B07E] text-[#2F4222]',
-  },
-];
+const CONFIDENCE_STYLE_MAP: Record<RatingKey, string> = {
+  '1': 'bg-[#FAD7DC] hover:bg-[#F4B5BE] border-[#E598A4] text-[#49352D]',
+  '2': 'bg-[#FBE7D3] hover:bg-[#F5D6B8] border-[#E5BE96] text-[#49352D]',
+  '3': 'bg-[#F3E9DC] hover:bg-[#E6D7C8] border-[#D8C5B4] text-[#49352D]',
+  '4': 'bg-[#E5EFD9] hover:bg-[#D5E5C2] border-[#B4C89D] text-[#3F5232]',
+  '5': 'bg-[#DCE8CE] hover:bg-[#C8D9B5] border-[#96B07E] text-[#2F4222]',
+};
 
 export const StudySection: React.FC<StudySectionProps> = ({
   decks,
@@ -109,6 +80,7 @@ export const StudySection: React.FC<StudySectionProps> = ({
   onBackHome,
   onOpenSettings,
 }) => {
+  const t = getUiStrings(settings.uiLanguage ?? 'de').study;
   const [activeModeFilter, setActiveModeFilter] = useState<SessionModeFilter>('all');
   const [isRevealed, setIsRevealed] = useState(false);
   const [isShuffled, setIsShuffled] = useState(false);
@@ -312,19 +284,19 @@ export const StudySection: React.FC<StudySectionProps> = ({
     switch (mode) {
       case 'vocab':
         return {
-          label: 'Vokabel',
+          label: t.badgeVocab,
           badgeBg: 'bg-[#FAD7DC] border-[#F0BFC7] text-[#49352D]',
           icon: BookOpen,
         };
       case 'writing':
         return {
-          label: 'Schreibübung',
+          label: t.badgeWriting,
           badgeBg: 'bg-[#E3ECD6] border-[#C5D4B3] text-[#49352D]',
           icon: Pencil,
         };
       case 'listening':
         return {
-          label: 'Hörübung',
+          label: t.badgeListening,
           badgeBg: 'bg-[#F6DCE8] border-[#E8C2D5] text-[#49352D]',
           icon: Headphones,
         };
@@ -360,12 +332,12 @@ export const StudySection: React.FC<StudySectionProps> = ({
             </button>
 
             <div className="flex items-center gap-1.5">
-              <span className="text-base sm:text-lg font-bold text-[#49352D]">Lernen</span>
+              <span className="text-base sm:text-lg font-bold text-[#49352D]">{t.title}</span>
               <span className="text-[#8C7568] font-bold">·</span>
               <select
                 value={currentDeck.id}
                 onChange={(e) => onSelectDeck(e.target.value)}
-                aria-label="Deck auswählen"
+                aria-label="Deck"
                 className="bg-[#FFFDF9] border border-[#E6D7C8] rounded-xl px-3 py-1.5 text-sm sm:text-base font-bold text-[#49352D] focus:outline-none focus:border-[#E98F9C] cursor-pointer max-w-[230px] sm:max-w-none"
               >
                 {decks.map((d) => (
@@ -380,14 +352,14 @@ export const StudySection: React.FC<StudySectionProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={() => setSlowAudio((prev) => !prev)}
-              title="Langsamer Modus (0.8×)"
+              title={t.slowMode}
               className={`px-3 py-2 rounded-xl border text-xs font-bold transition-colors cursor-pointer whitespace-nowrap ${
                 slowAudio
                   ? 'bg-[#E3ECD6] border-[#A9B99A] text-[#3F5232]'
                   : 'bg-[#FFFDF9] border-[#E6D7C8] text-[#6B5344] hover:text-[#49352D]'
               }`}
             >
-              {slowAudio ? '0.8× Langsam' : '1.0× Normal'}
+              {slowAudio ? t.slowMode : t.normalMode}
             </button>
 
             <button
@@ -399,7 +371,7 @@ export const StudySection: React.FC<StudySectionProps> = ({
               }`}
             >
               <Layers className="w-4 h-4" />
-              <span className="hidden sm:inline">Modus</span>
+              <span className="hidden sm:inline">{t.modeBtn}</span>
             </button>
 
             <button
@@ -436,7 +408,7 @@ export const StudySection: React.FC<StudySectionProps> = ({
                 : 'bg-[#FFFDF9] text-[#6B5344] border-[#E6D7C8] hover:border-[#C7B2A3]'
             }`}
           >
-            Alle Modi ({modeCounts.all})
+            {t.allModes} ({modeCounts.all})
           </button>
 
           <button
@@ -448,7 +420,7 @@ export const StudySection: React.FC<StudySectionProps> = ({
             }`}
           >
             <BookOpen className="w-3.5 h-3.5 text-[#C86D7A]" />
-            <span>Vokabeln ({modeCounts.vocab})</span>
+            <span>{t.vocab} ({modeCounts.vocab})</span>
           </button>
 
           <button
@@ -460,7 +432,7 @@ export const StudySection: React.FC<StudySectionProps> = ({
             }`}
           >
             <Pencil className="w-3.5 h-3.5 text-[#6A7F5B]" />
-            <span>Schreibübung ({modeCounts.writing})</span>
+            <span>{t.writing} ({modeCounts.writing})</span>
           </button>
 
           <button
@@ -472,7 +444,7 @@ export const StudySection: React.FC<StudySectionProps> = ({
             }`}
           >
             <Headphones className="w-3.5 h-3.5 text-[#A4678E]" />
-            <span>Hörübung ({modeCounts.listening})</span>
+            <span>{t.listening} ({modeCounts.listening})</span>
           </button>
         </div>
 
@@ -486,9 +458,9 @@ export const StudySection: React.FC<StudySectionProps> = ({
                 <BookOpen className="w-5 h-5 text-[#49352D]" />
               </div>
               <div>
-                <p className="text-sm font-bold text-[#49352D]">Vokabeln</p>
+                <p className="text-sm font-bold text-[#49352D]">{t.vocab}</p>
                 <p className="text-xs font-semibold text-[#6B5344] mt-0.5">
-                  Schriftzeichen, Pinyin & Bedeutung lernen.
+                  {t.modeVocabDesc}
                 </p>
               </div>
             </button>
@@ -501,9 +473,9 @@ export const StudySection: React.FC<StudySectionProps> = ({
                 <Pencil className="w-5 h-5 text-[#49352D]" />
               </div>
               <div>
-                <p className="text-sm font-bold text-[#49352D]">Schreibübung</p>
+                <p className="text-sm font-bold text-[#49352D]">{t.writing}</p>
                 <p className="text-xs font-semibold text-[#6B5344] mt-0.5">
-                  Vereinfachte Zeichen per Tastatur üben.
+                  {t.modeWritingDesc}
                 </p>
               </div>
             </button>
@@ -516,9 +488,9 @@ export const StudySection: React.FC<StudySectionProps> = ({
                 <Headphones className="w-5 h-5 text-[#49352D]" />
               </div>
               <div>
-                <p className="text-sm font-bold text-[#49352D]">Hörübung</p>
+                <p className="text-sm font-bold text-[#49352D]">{t.listening}</p>
                 <p className="text-xs font-semibold text-[#6B5344] mt-0.5">
-                  Ganze Mandarin-Sätze über Audio verstehen.
+                  {t.modeListeningDesc}
                 </p>
               </div>
             </button>
@@ -535,8 +507,8 @@ export const StudySection: React.FC<StudySectionProps> = ({
           </div>
           <span className="text-xs font-bold text-[#6B5344] tabular-nums shrink-0">
             {loopState.phase === 'sweep'
-              ? `Abschluss-Check (${loopState.sweepPassedIds.length}/${loopState.finalCheckTotal})`
-              : `${loopState.clearedIds.length} / ${loopState.orderedCardIds.length} sicher (${progressPct}%)`}
+              ? `${t.finalCheck} (${loopState.sweepPassedIds.length}/${loopState.finalCheckTotal})`
+              : `${loopState.clearedIds.length} / ${loopState.orderedCardIds.length} ${t.masteredProgress} (${progressPct}%)`}
           </span>
         </div>
 
@@ -553,10 +525,10 @@ export const StudySection: React.FC<StudySectionProps> = ({
               />
             </div>
             <h2 className="text-xl font-bold text-[#49352D]">
-              Runde abgeschlossen! 太棒了 ♡
+              {t.roundDoneTitle}
             </h2>
             <p className="text-sm font-semibold text-[#6B5344] mt-1">
-              Alle {loopState.orderedCardIds.length} Karten dieses Sets sind gefestigt.
+              {t.roundDoneDesc(loopState.orderedCardIds.length)}
             </p>
             <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
               <button
@@ -564,13 +536,13 @@ export const StudySection: React.FC<StudySectionProps> = ({
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#E38B98] hover:bg-[#D87A88] text-white font-bold text-sm cursor-pointer"
               >
                 <RotateCcw className="w-4 h-4" />
-                <span>Neue Wiederholungsrunde</span>
+                <span>{t.repeatRound}</span>
               </button>
               <button
                 onClick={onBackHome}
                 className="px-5 py-2.5 rounded-full bg-[#F3E9DC] hover:bg-[#E6D7C8] text-[#49352D] font-bold text-sm cursor-pointer"
               >
-                Zurück zur Übersicht
+                {t.backOverview}
               </button>
             </div>
           </div>
@@ -627,7 +599,7 @@ export const StudySection: React.FC<StudySectionProps> = ({
 
                           {isDivergent && (
                             <span className="px-2.5 py-1 rounded-full bg-[#FBE7D3] border border-[#E5BE96] text-[11px] font-bold text-[#6B421C]">
-                              Kantonesisch ≠ Mandarin
+                              {t.cantoneseDiff}
                             </span>
                           )}
                         </div>
@@ -636,9 +608,9 @@ export const StudySection: React.FC<StudySectionProps> = ({
                           <button
                             onClick={onTogglePinyin}
                             className="mr-7 text-xs font-bold px-2.5 py-1 rounded-lg bg-[#FFF9F1]/90 border border-[#E6D7C8] text-[#6B5344] hover:text-[#49352D] transition-colors cursor-pointer"
-                            title="Pinyin ein-/ausblenden"
+                            title={t.pinyinLabel}
                           >
-                            Pinyin: {settings.showPinyin ? 'An' : 'Aus'}
+                            {t.pinyinLabel}: {settings.showPinyin ? t.on : t.off}
                           </button>
                         )}
                       </div>
@@ -661,7 +633,7 @@ export const StudySection: React.FC<StudySectionProps> = ({
                                   {currentCard.traditional &&
                                     currentCard.traditional !== currentCard.hanzi && (
                                       <p className="mt-1 text-xs font-semibold text-[#8C7568]">
-                                        Traditionell:{' '}
+                                        {t.traditionalLabel}{' '}
                                         <span className="font-chinese">
                                           {currentCard.traditional}
                                         </span>
@@ -781,7 +753,7 @@ export const StudySection: React.FC<StudySectionProps> = ({
                                   lang="zh-CN"
                                   value={writingInput}
                                   onChange={(e) => setWritingInput(e.target.value)}
-                                  placeholder="Vereinfachte Schriftzeichen eingeben..."
+                                  placeholder={t.writingPlaceholder}
                                   autoComplete="off"
                                   autoCorrect="off"
                                   autoCapitalize="off"
@@ -797,7 +769,7 @@ export const StudySection: React.FC<StudySectionProps> = ({
                                         setWritingInput('');
                                         writingInputRef.current?.focus();
                                       }}
-                                      aria-label="Eingabe löschen"
+                                      aria-label="Clear"
                                       className="w-7 h-7 rounded-full hover:bg-[#F2E9DF] flex items-center justify-center text-[#6B5344] cursor-pointer"
                                     >
                                       <X className="w-4 h-4" />
@@ -812,7 +784,7 @@ export const StudySection: React.FC<StudySectionProps> = ({
                                 className="mt-4 inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-[#8FA47D] hover:bg-[#7F946D] text-white font-bold text-sm shadow-xs transition-all cursor-pointer"
                               >
                                 <Check className="w-4 h-4 stroke-[2.6]" />
-                                <span>Überprüfen</span>
+                                <span>{t.checkBtn}</span>
                               </button>
                             </form>
                           ) : (
@@ -826,7 +798,7 @@ export const StudySection: React.FC<StudySectionProps> = ({
                               {currentCard.traditional &&
                                 currentCard.traditional !== currentCard.hanzi && (
                                   <p className="mt-1 text-xs font-semibold text-[#8C7568]">
-                                    Traditionell:{' '}
+                                    {t.traditionalLabel}{' '}
                                     <span className="font-chinese">
                                       {currentCard.traditional}
                                     </span>
@@ -839,7 +811,7 @@ export const StudySection: React.FC<StudySectionProps> = ({
                                 </span>
                                 <button
                                   onClick={() => playCurrentMandarin()}
-                                  aria-label="Mandarin Aussprache abspielen"
+                                  aria-label="Mandarin audio"
                                   className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
                                     isSpeaking
                                       ? 'bg-[#8FA47D] text-white scale-105'
@@ -860,7 +832,7 @@ export const StudySection: React.FC<StudySectionProps> = ({
                                     <div className="flex items-center justify-center gap-2 text-[#557042] font-bold">
                                       <Check className="w-4 h-4 stroke-[2.6]" />
                                       <span>
-                                        Perfekt geschrieben:{' '}
+                                        {t.perfectWritten}{' '}
                                         <span className="font-chinese text-base">
                                           {writingInput.trim()}
                                         </span>
@@ -869,14 +841,14 @@ export const StudySection: React.FC<StudySectionProps> = ({
                                   ) : (
                                     <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 text-[#6B5344] font-semibold">
                                       <span>
-                                        Deine Eingabe:{' '}
+                                        {t.yourInput}{' '}
                                         <strong className="font-chinese text-base text-[#C86D7A]">
                                           {writingInput.trim()}
                                         </strong>
                                       </span>
                                       <span aria-hidden="true">→</span>
                                       <span>
-                                        Richtig:{' '}
+                                        {t.correctAnswer}{' '}
                                         <strong className="font-chinese text-base text-[#557042]">
                                           {currentCard.hanzi}
                                         </strong>
@@ -885,7 +857,7 @@ export const StudySection: React.FC<StudySectionProps> = ({
                                   )
                                 ) : (
                                   <p className="text-[#8C7568] font-semibold">
-                                    Vergleiche die Striche und die Pinyin-Aussprache.
+                                    {t.compareHint}
                                   </p>
                                 )}
                               </div>
@@ -945,7 +917,7 @@ export const StudySection: React.FC<StudySectionProps> = ({
                                   onClick={() => playCurrentMandarin(true)}
                                   className="mt-4 px-3.5 py-1.5 rounded-full bg-[#FFFDF9] border border-[#E6D7C8] text-xs font-bold text-[#6B5344] hover:text-[#49352D] cursor-pointer"
                                 >
-                                  Langsam abspielen (0.8×)
+                                  {t.playSlowBtn}
                                 </button>
                               )}
                             </div>
@@ -1058,18 +1030,18 @@ export const StudySection: React.FC<StudySectionProps> = ({
                     className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-[#FAD7DC] hover:bg-[#F4B5BE] border border-[#E98F9C]/40 text-[#49352D] font-bold text-sm shadow-2xs transition-all cursor-pointer whitespace-nowrap"
                   >
                     <Eye className="w-4 h-4 text-[#C86D7A]" />
-                    <span>Antwort zeigen (Leertaste)</span>
+                    <span>{t.showAnswer}</span>
                   </button>
                 )}
               </div>
 
               {isRevealed && (
                 <div className="w-full grid grid-cols-5 gap-1.5 sm:gap-2">
-                  {CONFIDENCE_BUTTONS.map((btn) => (
+                  {t.ratings.map((btn) => (
                     <button
                       key={btn.key}
                       onClick={() => handleRateAndAdvance(btn.key)}
-                      className={`flex flex-col items-center justify-center py-2 px-1.5 rounded-2xl border font-bold transition-all cursor-pointer ${btn.cls}`}
+                      className={`flex flex-col items-center justify-center py-2 px-1.5 rounded-2xl border font-bold transition-all cursor-pointer ${CONFIDENCE_STYLE_MAP[btn.key]}`}
                     >
                       <span className="text-[11px] sm:text-xs leading-tight whitespace-nowrap">
                         {btn.label}

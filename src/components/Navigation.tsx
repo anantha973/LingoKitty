@@ -1,22 +1,29 @@
 import React from 'react';
 import { Home, Play, Layers, BarChart2, Settings } from 'lucide-react';
-import { AppSection } from '../types';
+import { AppSection, UiLanguage } from '../types';
 import { CatMascotHeader } from './KawaiiIllustrations';
+import { getUiStrings } from '../data/uiStrings';
 
 interface NavigationProps {
   activeSection: AppSection;
   onNavigate: (section: AppSection) => void;
+  uiLanguage?: UiLanguage;
 }
 
-const NAV_ITEMS: { id: AppSection; label: string; icon: React.FC<{ className?: string }> }[] = [
-  { id: 'home', label: 'Start', icon: Home },
-  { id: 'study', label: 'Lernen', icon: Play },
-  { id: 'decks', label: 'Decks', icon: Layers },
-  { id: 'progress', label: 'Fortschritt', icon: BarChart2 },
-  { id: 'settings', label: 'Einstellungen', icon: Settings },
-];
+export const DesktopSidebar: React.FC<NavigationProps> = ({
+  activeSection,
+  onNavigate,
+  uiLanguage = 'de',
+}) => {
+  const t = getUiStrings(uiLanguage).nav;
+  const navItems: { id: AppSection; label: string; icon: React.FC<{ className?: string }> }[] = [
+    { id: 'home', label: t.home, icon: Home },
+    { id: 'study', label: t.study, icon: Play },
+    { id: 'decks', label: t.decks, icon: Layers },
+    { id: 'progress', label: t.progress, icon: BarChart2 },
+    { id: 'settings', label: t.settings, icon: Settings },
+  ];
 
-export const DesktopSidebar: React.FC<NavigationProps> = ({ activeSection, onNavigate }) => {
   return (
     <aside className="hidden md:flex flex-col w-60 shrink-0 bg-[#FFF9F3]/90 border-r border-[#E9D8C8] px-5 pt-7 pb-6 select-none">
       {/* Top App Title & Mascot Lockup */}
@@ -38,7 +45,7 @@ export const DesktopSidebar: React.FC<NavigationProps> = ({ activeSection, onNav
           />
         </div>
         <span className="text-xs font-semibold text-[#8C7568] mt-0.5">
-          Chinesisch Lernen
+          {t.subtitle}
         </span>
 
         {/* Hello Kitty & Keroppi Celebrate Duo peeking over Start */}
@@ -49,7 +56,7 @@ export const DesktopSidebar: React.FC<NavigationProps> = ({ activeSection, onNav
 
       {/* Navigation Links */}
       <nav className="flex flex-col gap-1.5" aria-label="Hauptnavigation">
-        {NAV_ITEMS.map((item) => {
+        {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeSection === item.id;
           return (
@@ -91,7 +98,7 @@ export const DesktopSidebar: React.FC<NavigationProps> = ({ activeSection, onNav
           />
           <p className="font-chinese text-sm font-bold text-[#6B5344]">一天一点点</p>
           <p className="text-[11px] font-semibold text-[#8C7568] mt-0.5">
-            Kleine Schritte, großer Fortschritt.
+            {t.motto}
           </p>
         </div>
       </div>
@@ -99,14 +106,27 @@ export const DesktopSidebar: React.FC<NavigationProps> = ({ activeSection, onNav
   );
 };
 
-export const MobileBottomNav: React.FC<NavigationProps> = ({ activeSection, onNavigate }) => {
+export const MobileBottomNav: React.FC<NavigationProps> = ({
+  activeSection,
+  onNavigate,
+  uiLanguage = 'de',
+}) => {
+  const t = getUiStrings(uiLanguage).nav;
+  const navItems: { id: AppSection; label: string; icon: React.FC<{ className?: string }> }[] = [
+    { id: 'home', label: t.home, icon: Home },
+    { id: 'study', label: t.study, icon: Play },
+    { id: 'decks', label: t.decks, icon: Layers },
+    { id: 'progress', label: t.progress, icon: BarChart2 },
+    { id: 'settings', label: t.settings, icon: Settings },
+  ];
+
   return (
     <nav
       aria-label="Mobile Navigation"
       className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#FFF9F3]/95 backdrop-blur-md border-t border-[#E9D8C8] px-1.5 py-1"
     >
       <div className="grid grid-cols-5 items-center max-w-md mx-auto gap-0.5">
-        {NAV_ITEMS.map((item) => {
+        {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeSection === item.id;
           return (

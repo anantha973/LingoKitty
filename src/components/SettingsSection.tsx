@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Settings as SettingsIcon, Check, RotateCcw } from 'lucide-react';
-import { StudyDirection, StudyMode, UserSettings } from '../types';
+import { StudyDirection, StudyMode, UiLanguage, UserSettings } from '../types';
 import { CatSleeping } from './KawaiiIllustrations';
 import { AnimatedMascotScene } from './AnimatedMascotScene';
+import { getUiStrings } from '../data/uiStrings';
 
 interface SettingsSectionProps {
   settings: UserSettings;
@@ -10,6 +11,7 @@ interface SettingsSectionProps {
   onToggleMode: (mode: StudyMode) => void;
   onTogglePinyin: () => void;
   onUpdateThemeAccent: (accent: UserSettings['themeAccent']) => void;
+  onUpdateUiLanguage: (lang: UiLanguage) => void;
   onResetDemoData: () => void;
 }
 
@@ -19,9 +21,12 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({
   onToggleMode,
   onTogglePinyin,
   onUpdateThemeAccent,
+  onUpdateUiLanguage,
   onResetDemoData,
 }) => {
   const [resetConfirmed, setResetConfirmed] = useState(false);
+  const uiLang: UiLanguage = settings.uiLanguage ?? 'de';
+  const t = getUiStrings(uiLang).settings;
 
   const handleResetClick = () => {
     onResetDemoData();
@@ -39,15 +44,58 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({
           </div>
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-[#49352D] leading-tight">
-              Einstellungen
+              {t.title}
             </h1>
             <p className="text-xs font-semibold text-[#8C7568] mt-0.5">
-              Standard-Lernrichtung, aktive Kartentypen und Darstellung anpassen
+              {t.subtitle}
             </p>
           </div>
         </div>
 
         <div className="bg-[#FFFDF9] border border-[#E9D8C8] rounded-2xl p-4 sm:p-6 space-y-5">
+          {/* 0. App UI Language Toggle (DE / EN — UI chrome only, flashcards stay German) */}
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:items-center pb-5 border-b border-[#E9D8C8]">
+            <div className="sm:col-span-5">
+              <p className="text-sm font-bold text-[#49352D]">{t.uiLangTitle}</p>
+              <p className="text-xs font-semibold text-[#8C7568] mt-0.5 leading-snug">
+                {t.uiLangDesc}
+              </p>
+            </div>
+
+            <div className="sm:col-span-7 flex items-center">
+              <div
+                role="group"
+                aria-label={t.uiLangTitle}
+                className="inline-flex items-center gap-1 bg-[#F8F1E7] border border-[#E9D8C8] rounded-full p-1"
+              >
+                <button
+                  type="button"
+                  onClick={() => onUpdateUiLanguage('de')}
+                  aria-pressed={uiLang === 'de'}
+                  className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                    uiLang === 'de'
+                      ? 'bg-[#E98F9C] text-white shadow-2xs'
+                      : 'text-[#6B5344] hover:text-[#49352D]'
+                  }`}
+                >
+                  Deutsch
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onUpdateUiLanguage('en')}
+                  aria-pressed={uiLang === 'en'}
+                  className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                    uiLang === 'en'
+                      ? 'bg-[#E98F9C] text-white shadow-2xs'
+                      : 'text-[#6B5344] hover:text-[#49352D]'
+                  }`}
+                >
+                  English
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* 1. Kartenrichtung (Standard) */}
           <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:items-center pb-5 border-b border-[#E9D8C8]">
             <div className="sm:col-span-5">
@@ -55,10 +103,10 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({
                 htmlFor="direction-select"
                 className="block text-sm font-bold text-[#49352D]"
               >
-                Kartenrichtung (Standard)
+                {t.directionTitle}
               </label>
               <p className="text-xs font-semibold text-[#8C7568] mt-0.5 leading-snug">
-                Startrichtung für Vokabelkarten. Ein manueller Richtungswechsel während einer aktiven Sitzung bleibt davon unberührt.
+                {t.directionDesc}
               </p>
             </div>
 
@@ -71,8 +119,8 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({
                 }
                 className="min-h-[44px] px-4 py-2.5 rounded-xl bg-[#F8F1E7] border border-[#E9D8C8] text-sm font-bold text-[#49352D] focus:outline-none focus:border-[#E98F9C] cursor-pointer"
               >
-                <option value="zh-to-de">Chinesisch → Deutsch</option>
-                <option value="de-to-zh">Deutsch → Chinesisch</option>
+                <option value="zh-to-de">{t.dirZhDe}</option>
+                <option value="de-to-zh">{t.dirDeZh}</option>
               </select>
             </div>
           </div>
@@ -80,11 +128,9 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({
           {/* 2. Kartentypen im Lernmodus (Vokabeln, Schreiben, Hören) */}
           <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 pb-5 border-b border-[#E9D8C8]">
             <div className="sm:col-span-5">
-              <p className="text-sm font-bold text-[#49352D]">
-                Aktivierte Lernmodi
-              </p>
+              <p className="text-sm font-bold text-[#49352D]">{t.modesTitle}</p>
               <p className="text-xs font-semibold text-[#8C7568] mt-0.5 leading-snug">
-                Wähle, welche Kartentypen im gemischten Modus („Alle Modi“) abgefragt werden
+                {t.modesDesc}
               </p>
             </div>
 
@@ -93,18 +139,18 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({
                 [
                   {
                     id: 'vocab',
-                    label: 'Vokabeln',
-                    desc: 'Schriftzeichen, Pinyin & deutsche Bedeutung',
+                    label: t.modeVocab,
+                    desc: t.modeVocabDesc,
                   },
                   {
                     id: 'writing',
-                    label: 'Schreiben',
-                    desc: 'Vereinfachte Schriftzeichen per Tastatur eingeben',
+                    label: t.modeWriting,
+                    desc: t.modeWritingDesc,
                   },
                   {
                     id: 'listening',
-                    label: 'Hören',
-                    desc: 'Gesprochenes Mandarin ohne Text-Hilfe verstehen',
+                    label: t.modeListening,
+                    desc: t.modeListeningDesc,
                   },
                 ] as const
               ).map((item) => {
@@ -144,11 +190,9 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({
           {/* 3. Pinyin Visibility Toggle */}
           <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:items-center pb-5 border-b border-[#E9D8C8]">
             <div className="sm:col-span-5">
-              <p className="text-sm font-bold text-[#49352D]">
-                Pinyin-Anzeige
-              </p>
+              <p className="text-sm font-bold text-[#49352D]">{t.pinyinTitle}</p>
               <p className="text-xs font-semibold text-[#8C7568] mt-0.5 leading-snug">
-                Zeige Pinyin als Aussprachehilfe auf der Vorderseite von Vokabelkarten
+                {t.pinyinDesc}
               </p>
             </div>
 
@@ -169,11 +213,7 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({
                     settings.showPinyin ? 'bg-[#E98F9C]' : 'bg-[#A39286]'
                   }`}
                 />
-                <span>
-                  {settings.showPinyin
-                    ? 'Pinyin sichtbar (píngguǒ)'
-                    : 'Nur Schriftzeichen (苹果)'}
-                </span>
+                <span>{settings.showPinyin ? t.pinyinOn : t.pinyinOff}</span>
               </button>
             </div>
           </div>
@@ -181,9 +221,9 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({
           {/* 4. Appearance / Accent Swatches */}
           <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:items-center">
             <div className="sm:col-span-5">
-              <p className="text-sm font-bold text-[#49352D]">Farbakzent</p>
+              <p className="text-sm font-bold text-[#49352D]">{t.accentTitle}</p>
               <p className="text-xs font-semibold text-[#8C7568] mt-0.5">
-                Sanftes Pastell-Farbschema
+                {t.accentDesc}
               </p>
             </div>
 
@@ -219,7 +259,7 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({
         {/* Footer row with Beispieldaten zurücksetzen & Sleeping Cat Mascot */}
         <div className="mt-5 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-[#8C7568]">
-            <span>Sprachprofil: Deutsch → Vereinfachtes Chinesisch</span>
+            <span>{t.profileNote}</span>
             <span>·</span>
             <button
               type="button"
@@ -227,11 +267,7 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({
               className="min-h-[36px] inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#F8F1E7] hover:bg-[#EFE4D6] border border-[#E9D8C8] text-[#49352D] font-bold transition-colors cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>
-                {resetConfirmed
-                  ? 'Beispieldaten wiederhergestellt ✓'
-                  : 'Beispieldaten zurücksetzen'}
-              </span>
+              <span>{resetConfirmed ? t.resetDone : t.resetBtn}</span>
             </button>
           </div>
 
