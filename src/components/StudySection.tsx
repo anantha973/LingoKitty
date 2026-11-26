@@ -83,6 +83,7 @@ export const StudySection: React.FC<StudySectionProps> = ({
   const t = getUiStrings(settings.uiLanguage ?? 'de').study;
   const [activeModeFilter, setActiveModeFilter] = useState<SessionModeFilter>('all');
   const [isRevealed, setIsRevealed] = useState(false);
+  const [showGerman, setShowGerman] = useState(false);
   const [isShuffled, setIsShuffled] = useState(false);
   const [slowAudio, setSlowAudio] = useState(false);
   const [writingInput, setWritingInput] = useState('');
@@ -177,6 +178,7 @@ export const StudySection: React.FC<StudySectionProps> = ({
   // Reset per-card UI and prefetch next card's audio
   useEffect(() => {
     setIsRevealed(false);
+    setShowGerman(false);
     setWritingInput('');
     setWritingSubmitted(false);
     stopSpeech();
@@ -577,7 +579,7 @@ export const StudySection: React.FC<StudySectionProps> = ({
 
                   return (
                     <div
-                      className={`relative overflow-hidden rounded-3xl border-2 p-5 sm:p-8 min-h-[330px] sm:min-h-[360px] flex flex-col justify-between transition-colors duration-200 shadow-xs ${cardSurfaceClass}`}
+                      className={`relative overflow-hidden rounded-3xl border-2 p-5 sm:p-8 min-h-[330px] sm:min-h-[360px] flex flex-col transition-colors duration-200 shadow-xs ${cardSurfaceClass}`}
                     >
                       <div className="pointer-events-none absolute top-2 right-2.5 opacity-90">
                         <SakuraBranchCorner className="w-8 h-6" />
@@ -615,118 +617,114 @@ export const StudySection: React.FC<StudySectionProps> = ({
                         )}
                       </div>
 
-                      {/* MODE 1: VOCABULARY */}
+                      {/* MODE 1: VOCABULARY — Progressive disclosure: tap card → English; tap again → German */}
                       {effectiveMode === 'vocab' && (
-                        <div className="relative z-10 my-auto py-5 flex flex-col items-center justify-center text-center">
-                          {(() => {
-                            const isChineseFront = settings.defaultDirection === 'zh-to-de';
-                            const showChineseSide =
-                              (isChineseFront && !isRevealed) || (!isChineseFront && isRevealed);
-
-                            if (showChineseSide) {
-                              return (
-                                <>
-                                  <p className="font-chinese text-5xl sm:text-6xl font-bold text-[#49352D] tracking-wide leading-tight select-all">
-                                    {currentCard.hanzi}
-                                  </p>
-
-                                  {currentCard.traditional &&
-                                    currentCard.traditional !== currentCard.hanzi && (
-                                      <p className="mt-1 text-xs font-semibold text-[#8C7568]">
-                                        {t.traditionalLabel}{' '}
-                                        <span className="font-chinese">
-                                          {currentCard.traditional}
-                                        </span>
-                                      </p>
-                                    )}
-
-                                  <div className="mt-4 flex items-center justify-center gap-2.5">
-                                    <button
-                                      onClick={() => playCurrentMandarin()}
-                                      aria-label="Mandarin Aussprache abspielen"
-                                      className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
-                                        isSpeaking
-                                          ? 'bg-[#E98F9C] text-white scale-105'
-                                          : 'bg-[#FAD7DC]/80 text-[#49352D] hover:bg-[#F4B5BE]'
-                                      }`}
-                                    >
-                                      {isLoadingAudio ? (
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                      ) : (
-                                        <Volume2 className="w-5 h-5" />
-                                      )}
-                                    </button>
-
-                                    {settings.showPinyin && (
-                                      <span className="text-xl sm:text-2xl font-bold text-[#6B5344]">
-                                        {currentCard.pinyin}
-                                      </span>
-                                    )}
-                                  </div>
-
-                                  {isRevealed && (
-                                    <div className="mt-5 px-5 py-2.5 rounded-2xl bg-[#FFFDF9]/90 border border-[#CEDBC0]">
-                                      <p className="text-lg sm:text-xl font-bold text-[#49352D]">
-                                        {currentCard.german}
-                                      </p>
-                                      {(currentCard.grammar || currentCard.level) && (
-                                        <p className="text-xs font-semibold text-[#8C7568] mt-0.5">
-                                          {currentCard.level}
-                                          {currentCard.grammar ? ` · ${currentCard.grammar}` : ''}
-                                        </p>
-                                      )}
-                                      {currentCard.bridgeNote && (
-                                        <p className="text-xs font-bold text-[#8A5A2B] mt-1.5">
-                                          {currentCard.bridgeNote}
-                                        </p>
-                                      )}
-                                    </div>
-                                  )}
-                                </>
-                              );
+                        <div
+                          className="relative z-10 flex-1 flex flex-col cursor-pointer select-none"
+                          onClick={(e) => {
+                            // Don't flip if clicking the audio button
+                            if ((e.target as HTMLElement).closest('button')) return;
+                            if (!isRevealed) {
+                              handleRevealAnswer();
+                            } else if (!showGerman) {
+                              setShowGerman(true);
                             }
+                          }}
+                        >
+                          {/* Always-visible top 40%: Chinese character */}
+                          <div className="flex flex-col items-center justify-center pt-4 pb-3 border-b border-[#E6D7C8]/60">
+                            <p className="font-chinese text-5xl sm:text-6xl font-bold text-[#49352D] tracking-wide leading-tight select-all">
+                              {currentCard.hanzi}
+                            </p>
+                            {currentCard.traditional && currentCard.traditional !== currentCard.hanzi && (
+                              <p className="mt-1 text-xs font-semibold text-[#8C7568]">
+                                {t.traditionalLabel}{' '}
+                                <span className="font-chinese">{currentCard.traditional}</span>
+                              </p>
+                            )}
+                            <div className="mt-3 flex items-center justify-center gap-2.5">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); playCurrentMandarin(); }}
+                                aria-label="Play pronunciation"
+                                className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                                  isSpeaking
+                                    ? 'bg-[#E98F9C] text-white scale-105'
+                                    : 'bg-[#FAD7DC]/80 text-[#49352D] hover:bg-[#F4B5BE]'
+                                }`}
+                              >
+                                {isLoadingAudio ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Volume2 className="w-5 h-5" />
+                                )}
+                              </button>
+                              {settings.showPinyin && (
+                                <span className="text-lg sm:text-xl font-bold text-[#6B5344]">
+                                  {currentCard.pinyin}
+                                </span>
+                              )}
+                              {isDivergent && (
+                                <span className="px-2 py-0.5 rounded-full bg-[#FBE7D3] border border-[#E5BE96] text-[10px] font-bold text-[#6B421C]">
+                                  {t.cantoneseDiff}
+                                </span>
+                              )}
+                            </div>
+                          </div>
 
-                            return (
-                              <>
-                                <p className="text-2xl sm:text-3xl font-bold text-[#49352D] leading-snug">
-                                  {currentCard.german}
+                          {/* Bottom 60%: revealed content */}
+                          <div className="flex-1 flex flex-col items-center justify-center px-2 pt-3 pb-1 min-h-[130px]">
+                            {!isRevealed ? (
+                              /* Tap hint */
+                              <div className="flex flex-col items-center gap-1.5 opacity-50">
+                                <p className="text-xs font-semibold text-[#8C7568]">
+                                  {t.showAnswer}
                                 </p>
-
-                                <div className="mt-3 flex items-center justify-center gap-2">
-                                  <button
-                                    onClick={() => playCurrentMandarin()}
-                                    aria-label="Mandarin Aussprache abspielen"
-                                    className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
-                                      isSpeaking
-                                        ? 'bg-[#A9B99A] text-white scale-105'
-                                        : 'bg-[#E2ECD5] text-[#49352D] hover:bg-[#CEDBC0]'
-                                    }`}
-                                  >
-                                    {isLoadingAudio ? (
-                                      <Loader2 className="w-4 h-4 animate-spin" />
-                                    ) : (
-                                      <Volume2 className="w-5 h-5" />
-                                    )}
-                                  </button>
-
-                                  {isRevealed && (
-                                    <span className="text-lg font-bold text-[#49352D]">
-                                      <span className="font-chinese text-2xl mr-1.5">
-                                        {currentCard.hanzi}
-                                      </span>
-                                      {settings.showPinyin && `(${currentCard.pinyin})`}
-                                    </span>
+                              </div>
+                            ) : (
+                              <div className="w-full flex flex-col items-center gap-2">
+                                {/* Primary: English translation */}
+                                <div className="px-4 py-2.5 rounded-2xl bg-[#FFFDF9]/90 border border-[#CEDBC0] w-full text-center">
+                                  <p className="text-xl sm:text-2xl font-bold text-[#49352D] leading-snug">
+                                    {currentCard.english || currentCard.german}
+                                  </p>
+                                  {(currentCard.grammar || currentCard.level) && (
+                                    <p className="text-xs font-semibold text-[#8C7568] mt-0.5">
+                                      {currentCard.level}{currentCard.grammar ? ` · ${currentCard.grammar}` : ''}
+                                    </p>
                                   )}
                                 </div>
 
-                                {isRevealed && currentCard.bridgeNote && (
-                                  <p className="mt-3 text-xs font-bold text-[#8A5A2B] bg-[#FBE7D3]/70 px-3 py-1.5 rounded-xl">
-                                    {currentCard.bridgeNote}
-                                  </p>
+                                {/* Secondary: German — peek or fully shown */}
+                                {currentCard.english && currentCard.german && (
+                                  <div
+                                    className={`w-full text-center transition-all duration-300 ${showGerman ? 'opacity-100' : 'opacity-40'}`}
+                                  >
+                                    {showGerman ? (
+                                      <div className="px-4 py-2 rounded-xl bg-[#F5EBE0]/60 border border-[#E0CFC0] w-full">
+                                        <p className="text-sm font-semibold text-[#6B5344]">
+                                          🇩🇪 {currentCard.german}
+                                        </p>
+                                        {currentCard.bridgeNote && (
+                                          <p className="text-xs font-bold text-[#8A5A2B] mt-1">
+                                            {currentCard.bridgeNote}
+                                          </p>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <p className="text-xs font-semibold text-[#8C7568] italic truncate px-2">
+                                        🇩🇪 {currentCard.german.length > 40 ? currentCard.german.slice(0, 40) + '…' : currentCard.german}
+                                      </p>
+                                    )}
+                                    {!showGerman && (
+                                      <p className="text-[10px] text-[#B0A090] mt-0.5">
+                                        tap again for German
+                                      </p>
+                                    )}
+                                  </div>
                                 )}
-                              </>
-                            );
-                          })()}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       )}
 
@@ -1024,7 +1022,7 @@ export const StudySection: React.FC<StudySectionProps> = ({
                   </button>
                 </div>
 
-                {!isRevealed && (
+                {!isRevealed && effectiveMode !== 'vocab' && (
                   <button
                     onClick={handleRevealAnswer}
                     className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-[#FAD7DC] hover:bg-[#F4B5BE] border border-[#E98F9C]/40 text-[#49352D] font-bold text-sm shadow-2xs transition-all cursor-pointer whitespace-nowrap"
